@@ -1,0 +1,330 @@
+{
+  "refrigerators": [
+    {
+      "name": "LG 디오스 AI 오브제컬렉션 냉장고 (더블매직스페이스)",
+      "code": "M876GBB231",
+      "width_mm": 914,
+      "height_mm": 1860,
+      "depth_mm": 918,
+      "front_image": "assets/images/refrigerators/M876GBB231_front.jpg",
+      "side_image": "assets/images/refrigerators/M876GBB231_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#F8F6F5",
+        "secondary_color_hex": "#000000",
+        "layout_type": "4-door",
+        "panel_count": 4,
+        "has_display_screen": false
+      }
+    },
+    {
+      "name": "LG 디오스 AI 오브제컬렉션 냉장고 (양문형, 매직스페이스)",
+      "code": "S834MEE111",
+      "width_mm": 913,
+      "height_mm": 1790,
+      "depth_mm": 913,
+      "front_image": "assets/images/refrigerators/S834MEE111_front.jpg",
+      "side_image": "assets/images/refrigerators/S834MEE111_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#D2D2D2",
+        "secondary_color_hex": "#5F5D58",
+        "layout_type": "4-door",
+        "panel_count": 4,
+        "has_display_screen": false
+      }
+    },
+    {
+      "name": "LG 디오스 AI 오브제컬렉션 냉장고 (양문형)",
+      "code": "S836MEE022",
+      "width_mm": 913,
+      "height_mm": 1790,
+      "depth_mm": 913,
+      "front_image": "assets/images/refrigerators/S836MEE022_front.jpg",
+      "side_image": "assets/images/refrigerators/S836MEE022_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#FFFFFF",
+        "secondary_color_hex": "#000000",
+        "layout_type": "4-door",
+        "panel_count": 4,
+        "has_display_screen": false
+      }
+    },
+    {
+      "name": "LG 디오스 오브제컬렉션 냉장고 Fit & Max",
+      "code": "M626GBB032",
+      "width_mm": 914,
+      "height_mm": 1860,
+      "depth_mm": 698,
+      "front_image": "assets/images/refrigerators/M626GBB032_front.jpg",
+      "side_image": "assets/images/refrigerators/M626GBB032_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#FFFFFF",
+        "secondary_color_hex": "#000000",
+        "layout_type": "4-door",
+        "panel_count": 4,
+        "has_display_screen": false
+      }
+    },
+    {
+      "name": "LG 디오스 AI 오브제컬렉션 냉장고 Fit & Max",
+      "code": "M616GBB0M1",
+      "width_mm": 914,
+      "height_mm": 1860,
+      "depth_mm": 698,
+      "front_image": "assets/images/refrigerators/M616GBB0M1_front.jpg",
+      "side_image": "assets/images/refrigerators/M616GBB0M1_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#FFFFFF",
+        "secondary_color_hex": "#000000",
+        "layout_type": "4-door",
+        "panel_count": 4,
+        "has_display_screen": false
+      }
+    }
+  ],
+  "washers": [
+    {
+      "name": "LG 통돌이 컴포트 세탁기",
+      "code": "T19OZ0",
+      "width_mm": 651,
+      "height_mm": 1060,
+      "depth_mm": 680,
+      "front_image": "assets/images/washers/T19OZ0_front.jpg",
+      "side_image": "assets/images/washers/T19OZ0_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#000000",
+        "secondary_color_hex": "#C0C0C0",
+        "layout_type": "top-load",
+        "panel_count": 1,
+        "has_display_screen": false
+      }
+    },
+    {
+      "name": "LG 통돌이 세탁기",
+      "code": "TR15WV5",
+      "width_mm": 771,
+      "height_mm": 771,
+      "depth_mm": 397,
+      "front_image": "assets/images/washers/TR15WV5_front.jpg",
+      "side_image": "assets/images/washers/TR15WV5_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#FFFFFF",
+        "secondary_color_hex": "#000000",
+        "layout_type": "top-load",
+        "panel_count": 1,
+        "has_display_screen": false
+      }
+    },
+    {
+      "name": "LG 통돌이 세탁기",
+      "code": "T17DX3A",
+      "width_mm": 632,
+      "height_mm": 1018,
+      "depth_mm": 670,
+      "front_image": "assets/images/washers/T17DX3A_front.jpg",
+      "side_image": "assets/images/washers/T17DX3A_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#E0E0E0",
+        "secondary_color_hex": "#333333",
+        "layout_type": "top-load",
+        "panel_count": 1,
+        "has_display_screen": true
+      }
+    },
+    {
+      "name": "LG 트롬 오브제컬렉션 세탁기",
+      "code": "FX24KNTR",
+      "width_mm": 700,
+      "height_mm": 990,
+      "depth_mm": 830,
+      "front_image": "assets/images/washers/FX24KNTR_front.jpg",
+      "side_image": "assets/images/washers/FX24KNTR_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#D2D2D2",
+        "secondary_color_hex": "#5F5D58",
+        "layout_type": "single-door",
+        "panel_count": 1,
+        "has_display_screen": false
+      }
+    },
+    {
+      "name": "LG 트롬 오브제컬렉션 세탁기",
+      "code": "FX24ENER",
+      "width_mm": 700,
+      "height_mm": 990,
+      "depth_mm": 830,
+      "front_image": "assets/images/washers/FX24ENER_front.jpg",
+      "side_image": "assets/images/washers/FX24ENER_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#F8F6F2",
+        "secondary_color_hex": "#000000",
+        "layout_type": "front-load",
+        "panel_count": 1,
+        "has_display_screen": true
+      }
+    }
+  ],
+  "air-conditioners": [
+    {
+      "name": "LG 휘센 벽걸이에어컨",
+      "code": "SQ06EA1WCS-AKOR",
+      "width_mm": 754,
+      "height_mm": 308,
+      "depth_mm": 189,
+      "front_image": "assets/images/air-conditioners/SQ06EA1WCS-AKOR_front.jpg",
+      "side_image": "assets/images/air-conditioners/SQ06EA1WCS-AKOR_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#D2D2D2",
+        "secondary_color_hex": "#5F5D58",
+        "layout_type": "single-door",
+        "panel_count": 1,
+        "has_display_screen": false
+      }
+    },
+    {
+      "name": "LG 휘센 AI 오브제컬렉션 뷰II 에어컨 2in1 (1시리즈)",
+      "code": "FQ17GU1ED2",
+      "width_mm": 350,
+      "height_mm": 1840,
+      "depth_mm": 295,
+      "front_image": "assets/images/air-conditioners/FQ17GU1ED2_front.jpg",
+      "side_image": "assets/images/air-conditioners/FQ17GU1ED2_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#D2D2D2",
+        "secondary_color_hex": "#5F5D58",
+        "layout_type": "single-door",
+        "panel_count": 1,
+        "has_display_screen": false
+      }
+    },
+    {
+      "name": "LG 휘센 AI 오브제컬렉션 위너 에어컨 2in1 (1시리즈)",
+      "code": "FQ17GW1HD2",
+      "width_mm": 870,
+      "height_mm": 650,
+      "depth_mm": 330,
+      "front_image": "assets/images/air-conditioners/FQ17GW1HD2_front.jpg",
+      "side_image": "assets/images/air-conditioners/FQ17GW1HD2_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#D2D2D2",
+        "secondary_color_hex": "#5F5D58",
+        "layout_type": "single-door",
+        "panel_count": 1,
+        "has_display_screen": false
+      }
+    },
+    {
+      "name": "LG 휘센 벽걸이에어컨",
+      "code": "SQ07GJ3WES-AKOR",
+      "width_mm": 754,
+      "height_mm": 308,
+      "depth_mm": 189,
+      "front_image": "assets/images/air-conditioners/SQ07GJ3WES-AKOR_front.jpg",
+      "side_image": "assets/images/air-conditioners/SQ07GJ3WES-AKOR_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#FFFFFF",
+        "secondary_color_hex": "#000000",
+        "layout_type": "wall-mount",
+        "panel_count": 1,
+        "has_display_screen": false
+      }
+    },
+    {
+      "name": "LG 휘센 AI 오브제컬렉션 위너 에어컨 싱글 (1시리즈)",
+      "code": "FQ17GW1HD1",
+      "width_mm": 870,
+      "height_mm": 650,
+      "depth_mm": 330,
+      "front_image": "assets/images/air-conditioners/FQ17GW1HD1_front.jpg",
+      "side_image": "assets/images/air-conditioners/FQ17GW1HD1_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#D2D2D2",
+        "secondary_color_hex": "#5F5D58",
+        "layout_type": "single-door",
+        "panel_count": 1,
+        "has_display_screen": false
+      }
+    }
+  ],
+  "dryers": [
+    {
+      "name": "LG 트롬 오브제컬렉션 건조기",
+      "code": "RG20WN",
+      "width_mm": 700,
+      "height_mm": 990,
+      "depth_mm": 820,
+      "front_image": "assets/images/dryers/RG20WN_front.jpg",
+      "side_image": "assets/images/dryers/RG20WN_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#FFFFFF",
+        "secondary_color_hex": "#000000",
+        "layout_type": "front-load",
+        "panel_count": 1,
+        "has_display_screen": true
+      }
+    },
+    {
+      "name": "LG 트롬 오브제컬렉션 건조기",
+      "code": "RD21ESE",
+      "width_mm": 700,
+      "height_mm": 990,
+      "depth_mm": 820,
+      "front_image": "assets/images/dryers/RD21ESE_front.jpg",
+      "side_image": "assets/images/dryers/RD21ESE_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#F5F2E9",
+        "secondary_color_hex": "#1A1A1A",
+        "layout_type": "front-load",
+        "panel_count": 1,
+        "has_display_screen": true
+      }
+    },
+    {
+      "name": "LG 트롬 AI 오브제컬렉션 건조기",
+      "code": "RD25ESE",
+      "width_mm": 700,
+      "height_mm": 990,
+      "depth_mm": 824,
+      "front_image": "assets/images/dryers/RD25ESE_front.jpg",
+      "side_image": "assets/images/dryers/RD25ESE_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#D2D2D2",
+        "secondary_color_hex": "#5F5D58",
+        "layout_type": "single-door",
+        "panel_count": 1,
+        "has_display_screen": false
+      }
+    },
+    {
+      "name": "LG 트롬 오브제컬렉션 건조기 + 스태킹키트",
+      "code": "RD21ESE-KE",
+      "width_mm": 700,
+      "height_mm": 990,
+      "depth_mm": 820,
+      "front_image": "assets/images/dryers/RD21ESE-KE_front.jpg",
+      "side_image": "assets/images/dryers/RD21ESE-KE_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#F5F2E9",
+        "secondary_color_hex": "#2A2926",
+        "layout_type": "front-load",
+        "panel_count": 1,
+        "has_display_screen": true
+      }
+    },
+    {
+      "name": "LG 트롬 오브제컬렉션 건조기",
+      "code": "RG20VN",
+      "width_mm": 700,
+      "height_mm": 990,
+      "depth_mm": 820,
+      "front_image": "assets/images/dryers/RG20VN_front.jpg",
+      "side_image": "assets/images/dryers/RG20VN_side.jpg",
+      "visual_specs": {
+        "primary_color_hex": "#7F8782",
+        "secondary_color_hex": "#000000",
+        "layout_type": "front-load",
+        "panel_count": 1,
+        "has_display_screen": true
+      }
+    }
+  ]
+}
