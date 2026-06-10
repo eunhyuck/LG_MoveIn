@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../widgets/web_3d_viewer.dart';
 
 class HexColor {
@@ -38,6 +39,7 @@ class RoomElement {
   final int panelCount;
   final String? frontImage;
   final String? sideImage;
+  final bool isWall;
 
   RoomElement({
     required this.id,
@@ -57,6 +59,7 @@ class RoomElement {
     this.panelCount = 1,
     this.frontImage,
     this.sideImage,
+    this.isWall = false,
   });
 
   RoomElement copyWith({double? x, double? z}) {
@@ -78,6 +81,7 @@ class RoomElement {
       panelCount: panelCount,
       frontImage: frontImage,
       sideImage: sideImage,
+      isWall: isWall,
     );
   }
 }
@@ -92,8 +96,8 @@ class UC03RoomPlannerScreen extends StatefulWidget {
 class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
     with TickerProviderStateMixin {
   int _step = 0;
-  String _areaSize = "84㎡ (25평)";
-  String _roomLayout = "방 3 · 거실 1 · 욕실 2";
+  String _areaSize = "114㎡ (34평)";
+  String _roomLayout = "방 4 · 거실 1 · 욕실 2";
   String _lifestyle = "신혼";
   String _mood = "우드톤";
   bool _isAnalyzing = false;
@@ -325,31 +329,60 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
   void _generateLayout() {
     final List<RoomElement> list = [];
 
-    if (_lifestyle == "신혼") {
-      list.addAll([
-        _createLGElement("tv", "air-conditioners", 0, -40, 30, -85),
-        _createLGElement("fridge", "refrigerators", 0, 20, 0, -80),
-        _createLGElement("wash", "washers", 3, -80, 0, -10),
-      ]);
-    } else if (_lifestyle == "반려동반") {
-      list.addAll([
-        _createLGElement("pet_purifier", "air-conditioners", 1, 20, 0, 40),
-        _createLGElement("tv", "refrigerators", 1, -50, 0, -85),
-        _createLGElement("wash", "washers", 0, -80, 0, -20),
-      ]);
-    } else if (_lifestyle == "재택근무") {
-      list.addAll([
-        _createLGElement("monitor", "air-conditioners", 2, 50, 0, -40),
-        _createLGElement("standbyme", "dryers", 0, 10, 0, 20),
-        _createLGElement("tv", "refrigerators", 2, -40, 0, -85),
-      ]);
+    if (_areaSize.contains('25평') || _areaSize.contains('84㎡')) {
+      if (_lifestyle == "신혼") {
+        list.addAll([
+          _createLGElement("tv", "air-conditioners", 0, 52.0, 30, -50.0), // 거실 (Living Room) 좌측 벽면
+          _createLGElement("fridge", "refrigerators", 0, 80.0, 0, 65.0), // 주방 (Kitchen) 하단 우측
+          _createLGElement("wash", "washers", 3, 70.0, 0, -88.0), // 발코니 (Balcony) 상단 우측
+        ]);
+      } else if (_lifestyle == "반려동반") {
+        list.addAll([
+          _createLGElement("pet_purifier", "air-conditioners", 1, 70.0, 0, -40.0), // 거실 중앙
+          _createLGElement("tv", "refrigerators", 1, 52.0, 0, -50.0), // 거실 벽면
+          _createLGElement("wash", "washers", 0, 70.0, 0, -88.0), // 발코니
+        ]);
+      } else if (_lifestyle == "재택근무") {
+        list.addAll([
+          _createLGElement("monitor", "air-conditioners", 2, -15.0, 0, 50.0), // 침실2 (Bedroom 2) 서재
+          _createLGElement("standbyme", "dryers", 0, -50.0, 0, -50.0), // 안방 (Master Bed) 침대 옆
+          _createLGElement("tv", "refrigerators", 2, 52.0, 0, -50.0), // 거실 벽면
+        ]);
+      } else {
+        // 1인 미니멀
+        list.addAll([
+          _createLGElement("aerotower", "air-conditioners", 3, 70.0, 0, -30.0), // 거실 코너
+          _createLGElement("tv", "refrigerators", 3, 52.0, 0, -50.0), // 거실 벽면
+          _createLGElement("fridge", "refrigerators", 4, 80.0, 0, 65.0), // 주방
+        ]);
+      }
+    } else if (_areaSize.contains('18평') || _areaSize.contains('59㎡')) {
+      if (_lifestyle == "신혼") {
+        list.addAll([
+          _createLGElement("tv", "air-conditioners", 0, -10.0, 30, 50.0),
+          _createLGElement("fridge", "refrigerators", 0, 40.0, 0, -50.0),
+          _createLGElement("wash", "washers", 3, -50.0, 0, -50.0),
+        ]);
+      } else {
+        list.addAll([
+          _createLGElement("tv", "refrigerators", 1, -10.0, 0, 50.0),
+          _createLGElement("wash", "washers", 0, -50.0, 0, -50.0),
+        ]);
+      }
     } else {
-      // 1인 미니멀
-      list.addAll([
-        _createLGElement("aerotower", "air-conditioners", 3, 20, 0, 40),
-        _createLGElement("tv", "refrigerators", 3, -50, 0, -85),
-        _createLGElement("fridge", "refrigerators", 4, -80, 0, 20),
-      ]);
+      // 34평 (실측 설계도 real_blueprint.png 기준 매핑)
+      if (_lifestyle == "신혼") {
+        list.addAll([
+          _createLGElement("tv", "air-conditioners", 0, -22.0, 30, 30.0), // 거실 (Living Room) 좌측 경계벽
+          _createLGElement("fridge", "refrigerators", 0, -15.0, 0, -50.0), // 주방 (Kitchen) 냉장고 홈
+          _createLGElement("wash", "washers", 3, -70.0, 0, -95.0), // 발코니 (Balcony) 상단 좌측 세탁실
+        ]);
+      } else {
+        list.addAll([
+          _createLGElement("tv", "refrigerators", 1, -22.0, 0, 30.0), // 거실 벽면
+          _createLGElement("wash", "washers", 0, -70.0, 0, -95.0), // 발코니 세탁실
+        ]);
+      }
     }
 
     setState(() {
@@ -729,54 +762,69 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
           ),
         ),
         Expanded(
-          flex: 4,
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E4E8)),
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return GestureDetector(
-                  onPanDown: (details) {
-                    final boxX = details.localPosition.dx;
-                    final boxY = details.localPosition.dy;
-                    _findSelectedAppliance(
-                      boxX,
-                      boxY,
-                      constraints.maxWidth,
-                      constraints.maxHeight,
+          child: Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E4E8)),
+                image: DecorationImage(
+                  image: AssetImage(
+                    _areaSize.contains('18평')
+                        ? 'assets/images/blueprints/blueprint_18.png'
+                        : _areaSize.contains('34평')
+                            ? 'assets/images/blueprints/blueprint_34.png'
+                            : 'assets/images/blueprints/blueprint_25.png',
+                  ),
+                  fit: BoxFit.contain,
+                ),
+              ),
+              child: AspectRatio(
+                aspectRatio: 1.0,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return GestureDetector(
+                      onPanDown: (details) {
+                        final boxX = details.localPosition.dx;
+                        final boxY = details.localPosition.dy;
+                        _findSelectedAppliance(
+                          boxX,
+                          boxY,
+                          constraints.maxWidth,
+                          constraints.maxHeight,
+                        );
+                      },
+                      onPanUpdate: (details) {
+                        if (_selectedElementId != null) {
+                          _updateAppliancePosition(
+                            details.localPosition.dx,
+                            details.localPosition.dy,
+                            constraints.maxWidth,
+                            constraints.maxHeight,
+                          );
+                        }
+                      },
+                      onPanEnd: (details) {},
+                      child: CustomPaint(
+                        size: Size.infinite,
+                        painter: InteractiveBlueprintPainter(
+                          elements: _roomElements,
+                          selectedId: _selectedElementId,
+                          areaSize: _areaSize,
+                        ),
+                      ),
                     );
                   },
-                  onPanUpdate: (details) {
-                    if (_selectedElementId != null) {
-                      _updateAppliancePosition(
-                        details.localPosition.dx,
-                        details.localPosition.dy,
-                        constraints.maxWidth,
-                        constraints.maxHeight,
-                      );
-                    }
-                  },
-                  onPanEnd: (details) {},
-                  child: CustomPaint(
-                    size: Size.infinite,
-                    painter: InteractiveBlueprintPainter(
-                      elements: _roomElements,
-                      selectedId: _selectedElementId,
-                    ),
-                  ),
-                );
-              },
+                ),
+              ),
             ),
           ),
         ),
         if (selectedAppliance != null && selectedAppliance.isLG)
           _buildApplianceDetailCard(selectedAppliance)
         else
-          Expanded(flex: 3, child: _buildApplianceListView()),
+          Expanded(child: _buildApplianceListView()),
       ],
     );
   }
@@ -1050,8 +1098,8 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
     String? foundId;
     for (var element in _roomElements) {
       if (element.isLG) {
-        final halfW = element.dx / 2;
-        final halfL = element.dz / 2;
+        final halfW = (element.dx / 2) / 3.0;
+        final halfL = (element.dz / 2) / 3.0;
         if (cx >= element.x - halfW &&
             cx <= element.x + halfW &&
             cz >= element.z - halfL &&
@@ -1228,6 +1276,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
             'dz': e.dz,
             'primaryColorHex': e.primaryColorHex,
             'frontImage': e.frontImage,
+            'areaSize': _areaSize,
           },
         )
         .toList();
@@ -1242,7 +1291,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
               const Icon(Icons.rotate_left, size: 14, color: Color(0xFFE6007E)),
               const SizedBox(width: 4),
               const Text(
-                '마우스 드래그로 3D 공간을 직접 회전하고 확대해 보세요!',
+                '데스크톱: WASD 키로 이동 + 마우스 클릭하여 시점 조작 | 모바일: 조이스틱 및 드래그 (우측 상단 [1인칭 탐색 (FPS)]을 눌러보세요!)',
                 style: TextStyle(fontSize: 11, color: Color(0xFF8A877F)),
               ),
             ],
@@ -1375,10 +1424,12 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
 class InteractiveBlueprintPainter extends CustomPainter {
   final List<RoomElement> elements;
   final String? selectedId;
+  final String areaSize;
 
   InteractiveBlueprintPainter({
     required this.elements,
     required this.selectedId,
+    required this.areaSize,
   });
 
   @override
@@ -1386,36 +1437,28 @@ class InteractiveBlueprintPainter extends CustomPainter {
     final width = size.width;
     final height = size.height;
 
-    // Background Grid
-    final gridPaint = Paint()
-      ..color = const Color(0xFFF1F3F6)
-      ..strokeWidth = 1;
-    for (double i = 0; i < width; i += 20) {
-      canvas.drawLine(Offset(i, 0), Offset(i, height), gridPaint);
-    }
-    for (double i = 0; i < height; i += 20) {
-      canvas.drawLine(Offset(0, i), Offset(width, i), gridPaint);
+    double sizeCm = 600.0;
+    if (areaSize.contains('18평') || areaSize.contains('59㎡')) {
+      sizeCm = 450.0;
+    } else if (areaSize.contains('34평') || areaSize.contains('114㎡')) {
+      sizeCm = 800.0;
     }
 
-    // Outer wall border
-    final wallPaint = Paint()
-      ..color = const Color(0xFF2B2A27)
-      ..strokeWidth = 5
-      ..style = PaintingStyle.stroke;
-    canvas.drawRect(Rect.fromLTWH(10, 10, width - 20, height - 20), wallPaint);
+    final double scale = width / sizeCm;
 
     double toScreenX(double cx) => width / 2 + cx * (width / 2) / 100;
     double toScreenY(double cz) => height / 2 + cz * (height / 2) / 100;
-    double toScreenW(double cdx) => cdx * (width / 2) / 100;
-    double toScreenH(double cdz) => cdz * (height / 2) / 100;
+    double toScreenW(double cdx) => cdx * scale;
+    double toScreenH(double cdz) => cdz * scale;
 
+    // Draw Appliance/Furniture elements overlaid on the blueprint image
     for (var element in elements) {
       final isSel = element.id == selectedId;
       final fillPaint = Paint()
         ..color = isSel
             ? const Color(0xFFFFECEC)
             : (element.isLG
-                  ? element.color.withValues(alpha: 0.25)
+                  ? element.color.withValues(alpha: 0.3)
                   : element.color)
         ..style = PaintingStyle.fill;
 
@@ -1423,7 +1466,7 @@ class InteractiveBlueprintPainter extends CustomPainter {
         ..color = isSel
             ? const Color(0xFFE6007E)
             : (element.isLG ? const Color(0xFFE6007E) : const Color(0xFF8A877F))
-        ..strokeWidth = isSel ? 2 : 1
+        ..strokeWidth = isSel ? 2.5 : 1.5
         ..style = PaintingStyle.stroke;
 
       final elementW = toScreenW(element.dx);
@@ -1445,8 +1488,9 @@ class InteractiveBlueprintPainter extends CustomPainter {
               : element.name,
           style: TextStyle(
             color: isSel ? const Color(0xFFE6007E) : const Color(0xFF2B2A27),
-            fontSize: element.dx > 40 ? 9 : 7,
+            fontSize: element.dx > 40 ? 9.5 : 7.5,
             fontWeight: FontWeight.bold,
+            backgroundColor: Colors.white.withValues(alpha: 0.8),
           ),
         ),
         textDirection: TextDirection.ltr,
@@ -1465,7 +1509,8 @@ class InteractiveBlueprintPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant InteractiveBlueprintPainter oldDelegate) {
     return oldDelegate.selectedId != selectedId ||
-        oldDelegate.elements != elements;
+        oldDelegate.elements != elements ||
+        oldDelegate.areaSize != areaSize;
   }
 }
 
