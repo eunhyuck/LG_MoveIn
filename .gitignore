@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Tools - data files (too large for git)
+tools/*.json
+tools/*.csv
+tools/crawler_log.txt
+tools/new_cat_log*.txt
+tools/spec_log.txt
