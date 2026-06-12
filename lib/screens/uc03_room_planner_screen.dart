@@ -1484,7 +1484,7 @@ class InteractiveBlueprintPainter extends CustomPainter {
       final textPainter = TextPainter(
         text: TextSpan(
           text: element.name.length > 15
-              ? element.name.substring(0, 12) + "..."
+              ? "${element.name.substring(0, 12)}..."
               : element.name,
           style: TextStyle(
             color: isSel ? const Color(0xFFE6007E) : const Color(0xFF2B2A27),
@@ -1899,7 +1899,7 @@ class Isometric3DRotatorPainter extends CustomPainter {
       final textPainter = TextPainter(
         text: TextSpan(
           text: element.name.length > 12
-              ? element.name.substring(0, 10) + "..."
+              ? "${element.name.substring(0, 10)}..."
               : element.name,
           style: const TextStyle(
             color: Colors.black,
