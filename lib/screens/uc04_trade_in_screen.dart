@@ -30,8 +30,13 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
     '식기세척기', '전자레인지/오븐', '인덕션', '정수기', '제습기',
   ];
 
-  // 선택된 이미지 (base64 data URL 목록)
-  final List<String> _dataUrls = [];
+  // 가이드 슬롯 (순서 고정: 정면이 기본 썸네일)
+  static const _slotLabels = ['정면', '후면', '측면', '하자 부위'];
+  static const _slotIcons  = [Icons.photo_camera_outlined, Icons.flip_outlined, Icons.rotate_90_degrees_cw_outlined, Icons.report_problem_outlined];
+  final _photoSlots = <String, String?>{'정면': null, '후면': null, '측면': null, '하자 부위': null};
+  String _thumbnailSlot = '정면';
+
+  List<String> get _dataUrls => _photoSlots.values.whereType<String>().toList();
 
   // AI 분석 결과 - 수정 가능
   final _categoryCtrl = TextEditingController();
@@ -88,27 +93,23 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
     setState(() => _labelDataUrl = 'data:$mime;base64,${base64Encode(bytes)}');
   }
 
-  Future<void> _pickImages() async {
-    final remaining = 6 - _dataUrls.length;
-    if (remaining <= 0) return;
-
+  Future<void> _pickSlotImage(String slot) async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      allowMultiple: true,
-      withData: true,
+      type: FileType.image, allowMultiple: false, withData: true,
     );
-    if (result == null) return;
-
-    final urls = <String>[];
-    for (final f in result.files.take(remaining)) {
-      final bytes = f.bytes;
-      if (bytes == null) continue;
-      final ext = (f.extension ?? 'jpg').toLowerCase();
-      final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
-      urls.add('data:$mime;base64,${base64Encode(bytes)}');
-    }
-
-    setState(() => _dataUrls.addAll(urls));
+    if (result == null || result.files.isEmpty) return;
+    final f = result.files.first;
+    final bytes = f.bytes;
+    if (bytes == null) return;
+    final ext = (f.extension ?? 'jpg').toLowerCase();
+    final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
+    setState(() {
+      _photoSlots[slot] = 'data:$mime;base64,${base64Encode(bytes)}';
+      // 정면이 비어 있었는데 다른 슬롯을 먼저 찍은 경우, 썸네일을 첫 번째 찍은 사진으로
+      if (_thumbnailSlot == '정면' && _photoSlots['정면'] == null) {
+        _thumbnailSlot = slot;
+      }
+    });
   }
 
   // ─── AI 분석 (3단계) ─────────────────────────────────────────
@@ -338,7 +339,7 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
       postedAt: DateTime.now(),
       isMine: true,
       seller: '나 (MoveIn 사용자)',
-      imageDataUrl: _dataUrls.isNotEmpty ? _dataUrls.first : null,
+      imageDataUrl: _photoSlots[_thumbnailSlot] ?? _dataUrls.firstOrNull,
     );
     MoveInState.instance.marketListings.insert(0, listing);
     setState(() {
@@ -590,105 +591,102 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
           const Text('입력할수록 가격 정확도가 높아져요 (선택)', style: TextStyle(fontSize: 11, color: Color(0xFFADA9A1))),
           const SizedBox(height: 20),
 
-          // 사진 그리드
-          if (_dataUrls.isEmpty)
-            GestureDetector(
-              onTap: _pickImages,
-              child: Container(
-                width: double.infinity,
-                height: 160,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE0DED8), style: BorderStyle.solid),
-                ),
-                child: const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.add_photo_alternate_outlined, size: 48, color: Color(0xFFADA9A1)),
-                    SizedBox(height: 10),
-                    Text('사진을 선택해주세요', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF5F5D58))),
-                    SizedBox(height: 4),
-                    Text('최대 6장 / 여러 각도로 찍을수록 정확도가 높아져요', style: TextStyle(fontSize: 12, color: Color(0xFF8A877F))),
-                  ],
-                ),
-              ),
-            )
-          else ...[
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8,
-              ),
-              itemCount: _dataUrls.length + (_dataUrls.length < 6 ? 1 : 0),
-              itemBuilder: (ctx, i) {
-                if (i == _dataUrls.length) {
-                  return GestureDetector(
-                    onTap: _pickImages,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE0DED8)),
-                      ),
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_photo_alternate_outlined, size: 28, color: Color(0xFF8A877F)),
-                          SizedBox(height: 4),
-                          Text('추가', style: TextStyle(fontSize: 11, color: Color(0xFF8A877F))),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.memory(
-                        base64Decode(_dataUrls[i].split(',').last),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    Positioned(
-                      top: 4, right: 4,
-                      child: GestureDetector(
-                        onTap: () => setState(() => _dataUrls.removeAt(i)),
-                        child: Container(
-                          decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                          child: const Icon(Icons.close, size: 16, color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            Text('${_dataUrls.length}장 선택됨', style: const TextStyle(fontSize: 12, color: Color(0xFF8A877F))),
-          ],
-
-          const SizedBox(height: 16),
-          // 팁
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFFBEF),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE0DED8)),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('📌  사진 촬영 팁', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                SizedBox(height: 8),
-                Text('• 정면 / 측면 / 모델 스티커 라벨을 각각 찍으면 정확도가 높아집니다\n• 스크래치·찌그러짐이 있는 부위도 촬영해 주세요', style: TextStyle(fontSize: 12, color: Color(0xFF5F5D58), height: 1.6)),
-              ],
-            ),
+          // 가이드 사진 슬롯
+          Row(
+            children: [
+              const Text('제품 사진', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(width: 6),
+              Text('${_dataUrls.length}/4장', style: const TextStyle(fontSize: 12, color: Color(0xFF8A877F))),
+            ],
           ),
+          const SizedBox(height: 8),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 1.15,
+            children: List.generate(_slotLabels.length, (i) {
+              final slot = _slotLabels[i];
+              final photo = _photoSlots[slot];
+              final isThumbnail = _thumbnailSlot == slot && photo != null;
+              return GestureDetector(
+                onTap: () => _pickSlotImage(slot),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: photo != null ? const Color(0xFF2B2A27) : const Color(0xFFE0DED8),
+                      width: photo != null ? 1.5 : 1,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: photo != null
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.memory(base64Decode(photo.split(',').last), fit: BoxFit.cover),
+                              // 썸네일 뱃지
+                              if (isThumbnail)
+                                Positioned(
+                                  top: 6, left: 6,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                    decoration: BoxDecoration(color: const Color(0xFFE6007E), borderRadius: BorderRadius.circular(8)),
+                                    child: const Text('썸네일', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                                  ),
+                                ),
+                              // 슬롯 라벨
+                              Positioned(
+                                bottom: 0, left: 0, right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  color: Colors.black45,
+                                  child: Text(slot, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                              // 삭제 버튼
+                              Positioned(
+                                top: 4, right: 4,
+                                child: GestureDetector(
+                                  onTap: () => setState(() {
+                                    _photoSlots[slot] = null;
+                                    if (_thumbnailSlot == slot) {
+                                      _thumbnailSlot = _photoSlots.entries.firstWhere((e) => e.value != null, orElse: () => const MapEntry('정면', null)).key;
+                                    }
+                                  }),
+                                  child: Container(
+                                    decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                                    child: const Icon(Icons.close, size: 16, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(_slotIcons[i], size: 28, color: const Color(0xFFADA9A1)),
+                              const SizedBox(height: 6),
+                              Text(slot, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF5F5D58))),
+                              const SizedBox(height: 2),
+                              Text(
+                                slot == '정면' ? '마켓 썸네일로 사용' : slot == '하자 부위' ? '선택사항' : '선택사항',
+                                style: TextStyle(fontSize: 10, color: slot == '정면' ? const Color(0xFFE6007E) : const Color(0xFFADA9A1)),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              );
+            }),
+          ),
+
+          const SizedBox(height: 8),
+          const Text('• 정면 사진이 마켓 썸네일로 자동 사용됩니다\n• 하자 부위가 있다면 따로 찍어주세요', style: TextStyle(fontSize: 11, color: Color(0xFFADA9A1), height: 1.6)),
           const SizedBox(height: 32),
 
           SizedBox(
@@ -993,6 +991,64 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
                         style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                       ),
                     ),
+                ],
+              ),
+            ),
+          ],
+
+          // 썸네일 선택
+          if (_dataUrls.length > 1) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE0DED8))),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('마켓 썸네일', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  const Text('마켓에 표시될 대표 사진을 선택하세요', style: TextStyle(fontSize: 11, color: Color(0xFF8A877F))),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: _photoSlots.entries
+                        .where((e) => e.value != null)
+                        .map((e) {
+                      final isSelected = _thumbnailSlot == e.key;
+                      return GestureDetector(
+                        onTap: () => setState(() => _thumbnailSlot = e.key),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          width: 64, height: 64,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: isSelected ? const Color(0xFFE6007E) : const Color(0xFFE0DED8), width: isSelected ? 2.5 : 1),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Image.memory(base64Decode(e.value!.split(',').last), fit: BoxFit.cover),
+                                if (isSelected)
+                                  Container(
+                                    color: const Color(0xFFE6007E).withValues(alpha: 0.25),
+                                    child: const Icon(Icons.check_circle, color: Color(0xFFE6007E), size: 22),
+                                  ),
+                                Positioned(
+                                  bottom: 0, left: 0, right: 0,
+                                  child: Container(
+                                    color: Colors.black45,
+                                    padding: const EdgeInsets.symmetric(vertical: 2),
+                                    child: Text(e.key, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 9)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ],
               ),
             ),
