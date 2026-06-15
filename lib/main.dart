@@ -21,7 +21,7 @@ class MyApp extends StatelessWidget {
       title: 'LG ThinQ',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFFF4F5F8),
+        scaffoldBackgroundColor: const Color(0xFFF8F9FB),
         fontFamily: 'Pretendard',
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFFE6007E),

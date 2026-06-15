@@ -68,6 +68,7 @@ flutter:
     - assets/images/air-conditioners/
     - assets/images/dryers/
     - assets/images/blueprints/
+    - assets/images/services/
     - assets/models/
 
   # An image asset can refer to one or more resolution-specific "variants", see
