@@ -1290,9 +1290,11 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
             children: [
               const Icon(Icons.rotate_left, size: 14, color: Color(0xFFE6007E)),
               const SizedBox(width: 4),
-              const Text(
-                '데스크톱: WASD 키로 이동 + 마우스 클릭하여 시점 조작 | 모바일: 조이스틱 및 드래그 (우측 상단 [1인칭 탐색 (FPS)]을 눌러보세요!)',
-                style: TextStyle(fontSize: 11, color: Color(0xFF8A877F)),
+              const Expanded(
+                child: Text(
+                  '데스크톱: WASD 키로 이동 + 마우스 클릭하여 시점 조작 | 모바일: 조이스틱 및 드래그 (우측 상단 [1인칭 탐색 (FPS)]을 눌러보세요!)',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF8A877F)),
+                ),
               ),
             ],
           ),
