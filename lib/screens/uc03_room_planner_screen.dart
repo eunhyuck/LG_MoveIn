@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../widgets/web_3d_viewer.dart';
+import '../widgets/vr_room_viewer_stub.dart';
 
 class HexColor {
   static Color fromHex(String hexString) {
@@ -40,6 +41,8 @@ class RoomElement {
   final String? frontImage;
   final String? sideImage;
   final bool isWall;
+  final String? model3DUrl;
+  final String? code;
 
   RoomElement({
     required this.id,
@@ -60,28 +63,49 @@ class RoomElement {
     this.frontImage,
     this.sideImage,
     this.isWall = false,
+    this.model3DUrl,
+    this.code,
   });
 
-  RoomElement copyWith({double? x, double? z}) {
+  RoomElement copyWith({
+    String? name,
+    double? x,
+    double? z,
+    double? dx,
+    double? dy,
+    double? dz,
+    Color? color,
+    String? layoutType,
+    String? primaryColorHex,
+    String? secondaryColorHex,
+    bool? hasDisplayScreen,
+    int? panelCount,
+    String? frontImage,
+    String? sideImage,
+    String? model3DUrl,
+    String? code,
+  }) {
     return RoomElement(
       id: id,
-      name: name,
+      name: name ?? this.name,
       isLG: isLG,
       x: x ?? this.x,
       y: y,
       z: z ?? this.z,
-      dx: dx,
-      dy: dy,
-      dz: dz,
-      color: color,
-      layoutType: layoutType,
-      primaryColorHex: primaryColorHex,
-      secondaryColorHex: secondaryColorHex,
-      hasDisplayScreen: hasDisplayScreen,
-      panelCount: panelCount,
-      frontImage: frontImage,
-      sideImage: sideImage,
+      dx: dx ?? this.dx,
+      dy: dy ?? this.dy,
+      dz: dz ?? this.dz,
+      color: color ?? this.color,
+      layoutType: layoutType ?? this.layoutType,
+      primaryColorHex: primaryColorHex ?? this.primaryColorHex,
+      secondaryColorHex: secondaryColorHex ?? this.secondaryColorHex,
+      hasDisplayScreen: hasDisplayScreen ?? this.hasDisplayScreen,
+      panelCount: panelCount ?? this.panelCount,
+      frontImage: frontImage ?? this.frontImage,
+      sideImage: sideImage ?? this.sideImage,
       isWall: isWall,
+      model3DUrl: model3DUrl ?? this.model3DUrl,
+      code: code ?? this.code,
     );
   }
 }
@@ -101,6 +125,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
   String _lifestyle = "신혼";
   String _mood = "우드톤";
   bool _isAnalyzing = false;
+  bool _isBlueprintUploaded = true;
 
   // Interactive states
   List<RoomElement> _roomElements = [];
@@ -116,7 +141,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {});
@@ -268,6 +293,8 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
         panelCount: specs["panel_count"] ?? 1,
         frontImage: item["front_image"],
         sideImage: item["side_image"],
+        model3DUrl: item["model_3d_url"],
+        code: item["code"],
       );
     }
     // Fallbacks if database is completely empty
@@ -283,6 +310,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
         dy: 186.0,
         dz: 91.8,
         color: const Color(0xFF27AE60),
+        model3DUrl: "assets/models/M876GBB231.glb",
       );
     } else if (category == "washers") {
       return RoomElement(
@@ -296,6 +324,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
         dy: 106.0,
         dz: 68.0,
         color: const Color(0xFFE6007E),
+        model3DUrl: "assets/models/T17DX3A.glb",
       );
     } else if (category == "air-conditioners") {
       return RoomElement(
@@ -309,6 +338,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
         dy: 30.8,
         dz: 18.9,
         color: const Color(0xFF2F80ED),
+        model3DUrl: "assets/models/SQ06GA1WAJ-AKOR.glb",
       );
     } else {
       return RoomElement(
@@ -322,6 +352,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
         dy: 99.0,
         dz: 82.0,
         color: const Color(0xFF9B51E0),
+        model3DUrl: "assets/models/RH10WTW.glb",
       );
     }
   }
@@ -483,8 +514,17 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
           Expanded(
             child: InkWell(
               onTap: () {
+                setState(() {
+                  _isBlueprintUploaded = !_isBlueprintUploaded;
+                });
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("도면 파일이 성공적으로 모의 업로드되었습니다.")),
+                  SnackBar(
+                    content: Text(
+                      _isBlueprintUploaded
+                          ? "도면 파일이 성공적으로 업로드되었습니다."
+                          : "도면 파일 업로드가 취소되었습니다.",
+                    ),
+                  ),
                 );
               },
               child: Container(
@@ -493,27 +533,77 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFFE2E4E8), width: 1),
+                  image: _isBlueprintUploaded
+                      ? DecorationImage(
+                          image: AssetImage(
+                            _areaSize.contains('18평')
+                                ? 'assets/images/blueprints/blueprint_18.png'
+                                : _areaSize.contains('34평')
+                                    ? 'assets/images/blueprints/blueprint_34.png'
+                                    : 'assets/images/blueprints/blueprint_25.png',
+                          ),
+                          fit: BoxFit.contain,
+                        )
+                      : null,
                 ),
-                child: const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.file_upload_outlined,
-                      size: 48,
-                      color: Color(0xFF8A877F),
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      "도면 이미지 업로드",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      "탭하여 파일 선택 또는 이미지 끌어놓기",
-                      style: TextStyle(fontSize: 12, color: Color(0xFF8A877F)),
-                    ),
-                  ],
-                ),
+                child: _isBlueprintUploaded
+                    ? Stack(
+                        children: [
+                          Positioned(
+                            top: 12,
+                            right: 12,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE6007E),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    "업로드 완료",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.file_upload_outlined,
+                            size: 48,
+                            color: Color(0xFF8A877F),
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            "도면 이미지 업로드",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            "탭하여 파일 선택 또는 이미지 끌어놓기",
+                            style: TextStyle(fontSize: 12, color: Color(0xFF8A877F)),
+                          ),
+                        ],
+                      ),
               ),
             ),
           ),
@@ -689,8 +779,9 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
             unselectedLabelColor: const Color(0xFF8A877F),
             indicatorColor: const Color(0xFFE6007E),
             tabs: const [
-              Tab(text: "2D 평면도 배치 및 이동"),
-              Tab(text: "3D 입체 회전 프리뷰"),
+              Tab(text: "2D 평면도"),
+              Tab(text: "3D 프리뷰"),
+              Tab(text: "🥽 VR 탐색"),
             ],
           ),
         ),
@@ -701,6 +792,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
             children: [
               _build2DBlueprintView(selectedAppliance),
               _build3DInteractiveView(),
+              _buildVRView(),
             ],
           ),
         ),
@@ -1150,19 +1242,88 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
   }
 
   String _modelSrcFor(RoomElement el) {
+    if (el.model3DUrl != null && el.model3DUrl!.isNotEmpty) {
+      return el.model3DUrl!;
+    }
     final name = el.name.toLowerCase();
     if (name.contains('냉장고') || name.contains('refrigerator')) {
-      return 'assets/models/haier_refrigerator.glb';
+      return 'assets/models/M876GBB231.glb';
     } else if (name.contains('건조기') || name.contains('dryer')) {
-      return 'assets/models/washer_dryer_machine.glb';
+      return 'assets/models/RH10WTW.glb';
     } else if (name.contains('세탁기') ||
         name.contains('washer') ||
         name.contains('washing')) {
-      return 'assets/models/washing_machine.glb';
+      return 'assets/models/T17DX3A.glb';
     } else if (name.contains('에어컨') || name.contains('air')) {
-      return 'assets/models/air_conditioner.glb';
+      return 'assets/models/SQ06GA1WAJ-AKOR.glb';
     }
-    return 'assets/models/haier_refrigerator.glb';
+    return 'assets/models/M876GBB231.glb';
+  }
+
+  void _handleApplianceSwapped(
+    String id,
+    String code,
+    String name,
+    String? model3DUrl,
+    double dx,
+    double dy,
+    double dz,
+  ) {
+    setState(() {
+      _roomElements = _roomElements.map((e) {
+        if (e.id == id) {
+          String? frontImg;
+          String? sideImg;
+          String? primaryColor;
+          String? secondaryColor;
+          bool hasScreen = false;
+          int panels = 1;
+          String? layoutType;
+
+          for (final cat in _productsDatabase.keys) {
+            for (final item in _productsDatabase[cat]!) {
+              if (item['code'] == code) {
+                frontImg = item['front_image'];
+                sideImg = item['side_image'];
+                final specs = item['visual_specs'] ?? {};
+                primaryColor = specs['primary_color_hex'];
+                secondaryColor = specs['secondary_color_hex'];
+                hasScreen = specs['has_display_screen'] ?? false;
+                panels = specs['panel_count'] ?? 1;
+                layoutType = specs['layout_type'];
+                break;
+              }
+            }
+          }
+
+          return e.copyWith(
+            name: name,
+            code: code,
+            model3DUrl: model3DUrl,
+            dx: dx,
+            dy: dy,
+            dz: dz,
+            frontImage: frontImg,
+            sideImage: sideImg,
+            primaryColorHex: primaryColor,
+            secondaryColorHex: secondaryColor,
+            hasDisplayScreen: hasScreen,
+            panelCount: panels,
+            layoutType: layoutType,
+            color: primaryColor != null ? HexColor.fromHex(primaryColor) : null,
+          );
+        }
+        return e;
+      }).toList();
+      
+      final lgAppliances = _roomElements.where((e) => e.isLG).toList();
+      for (int i = 0; i < lgAppliances.length; i++) {
+        if (lgAppliances[i].id == id) {
+          _selectedProduct3DIndex = i;
+          break;
+        }
+      }
+    });
   }
 
   Widget _build3DInteractiveView() {
@@ -1176,89 +1337,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
       return const Center(child: Text('배치된 가전이 없습니다.'));
     }
 
-    final lgAppliances = _roomElements.where((e) => e.isLG).toList();
-
-    return Column(
-      children: [
-        // View mode switch toggle
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF1F3F6),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _viewMode3D = 0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: _viewMode3D == 0
-                          ? const Color(0xFFE6007E)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '전체 입체 배치도',
-                      style: TextStyle(
-                        color: _viewMode3D == 0
-                            ? Colors.white
-                            : const Color(0xFF5F5D58),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    if (lgAppliances.isNotEmpty) {
-                      setState(() => _viewMode3D = 1);
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('배치된 LG 가전이 없습니다.')),
-                      );
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: _viewMode3D == 1
-                          ? const Color(0xFFE6007E)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      '실물 가전 3D 상세보기',
-                      style: TextStyle(
-                        color: _viewMode3D == 1
-                            ? Colors.white
-                            : const Color(0xFF5F5D58),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Main 3D Panel
-        Expanded(
-          child: _viewMode3D == 0
-              ? _buildRoom3DLayout()
-              : _buildProduct3DDetail(lgAppliances),
-        ),
-      ],
-    );
+    return _buildRoom3DLayout();
   }
 
   Widget _buildRoom3DLayout() {
@@ -1277,6 +1356,8 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
             'primaryColorHex': e.primaryColorHex,
             'frontImage': e.frontImage,
             'areaSize': _areaSize,
+            'model3DUrl': e.model3DUrl,
+            'code': e.code,
           },
         )
         .toList();
@@ -1290,102 +1371,17 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
             children: [
               const Icon(Icons.rotate_left, size: 14, color: Color(0xFFE6007E)),
               const SizedBox(width: 4),
-              const Text(
-                '데스크톱: WASD 키로 이동 + 마우스 클릭하여 시점 조작 | 모바일: 조이스틱 및 드래그 (우측 상단 [1인칭 탐색 (FPS)]을 눌러보세요!)',
-                style: TextStyle(fontSize: 11, color: Color(0xFF8A877F)),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FC),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE2E4E8)),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Web3DViewer.create(elements: elementsList),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Text(
-            "추천 배치 무드: $_mood (${_roomElements.where((e) => e.isLG).length}개 가전)",
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-              color: Color(0xFF2B2A27),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildProduct3DDetail(List<RoomElement> lgAppliances) {
-    if (_selectedProduct3DIndex >= lgAppliances.length) {
-      _selectedProduct3DIndex = 0;
-    }
-    final el = lgAppliances[_selectedProduct3DIndex];
-    final src = _modelSrcFor(el);
-
-    return Column(
-      children: [
-        // Navigation arrows & Product Title
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios,
-                  size: 16,
-                  color: Color(0xFF5F5D58),
-                ),
-                onPressed: () {
-                  setState(() {
-                    _selectedProduct3DIndex =
-                        (_selectedProduct3DIndex - 1 + lgAppliances.length) %
-                        lgAppliances.length;
-                  });
-                },
-              ),
-              Expanded(
+              const Flexible(
                 child: Text(
-                  el.name,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: Color(0xFF2B2A27),
-                  ),
-                  maxLines: 1,
+                  '3D 화면을 드래그하여 회전하고, 가전을 선택해 보세요.',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF8A877F)),
                   overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
-              ),
-              IconButton(
-                icon: const Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: Color(0xFF5F5D58),
-                ),
-                onPressed: () {
-                  setState(() {
-                    _selectedProduct3DIndex =
-                        (_selectedProduct3DIndex + 1) % lgAppliances.length;
-                  });
-                },
               ),
             ],
           ),
         ),
-
-        // 3D Canvas
         Expanded(
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1397,28 +1393,86 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: Web3DViewer.create(
-                modelUrl: src,
-                frontImage: el.frontImage,
+                elements: elementsList,
+                productsDatabase: _productsDatabase,
+                onApplianceSwapped: _handleApplianceSwapped,
               ),
             ),
           ),
         ),
 
-        // Size Specs
+      ],
+    );
+  }
+
+  Widget _buildVRView() {
+    if (_tabController.index != 2) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFFE6007E)),
+      );
+    }
+    if (_roomElements.isEmpty) {
+      return const Center(child: Text('배치된 가전이 없습니다.'));
+    }
+
+    final List<Map<String, dynamic>> elementsList = _roomElements
+        .map((e) => {
+              'id': e.id,
+              'name': e.name,
+              'isLG': e.isLG,
+              'x': e.x,
+              'y': e.y,
+              'z': e.z,
+              'dx': e.dx,
+              'dy': e.dy,
+              'dz': e.dz,
+              'areaSize': _areaSize,
+              'model3DUrl': e.model3DUrl,
+              'code': e.code,
+            })
+        .toList();
+
+    return Column(
+      children: [
         Padding(
-          padding: const EdgeInsets.all(12),
-          child: Text(
-            "실측 사이즈: W ${el.dx.toInt()} x H ${el.dy.toInt()} x D ${el.dz.toInt()} cm",
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFFE6007E),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.vrpano_outlined, size: 14, color: Color(0xFFE6007E)),
+              SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  '🥽 스마트폰을 VR 헤드셋에 넣고 고개를 돌려 탐색하세요',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF8A877F)),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: VRRoomViewer(
+                elements: elementsList,
+                productsDatabase: _productsDatabase,
+              ),
             ),
           ),
         ),
       ],
     );
   }
+
+
 }
 
 class InteractiveBlueprintPainter extends CustomPainter {

@@ -14,7 +14,8 @@
         "layout_type": "4-door",
         "panel_count": 4,
         "has_display_screen": false
-      }
+      },
+      "model_3d_url": "assets/models/M876GBB231.glb"
     },
     {
       "name": "LG 디오스 AI 오브제컬렉션 냉장고 (양문형, 매직스페이스)",
@@ -30,7 +31,8 @@
         "layout_type": "4-door",
         "panel_count": 4,
         "has_display_screen": false
-      }
+      },
+      "model_3d_url": "assets/models/S834MEE111.glb"
     },
     {
       "name": "LG 디오스 AI 오브제컬렉션 냉장고 (양문형)",
@@ -46,7 +48,8 @@
         "layout_type": "4-door",
         "panel_count": 4,
         "has_display_screen": false
-      }
+      },
+      "model_3d_url": "assets/models/S836MEE022.glb"
     },
     {
       "name": "LG 디오스 오브제컬렉션 냉장고 Fit & Max",
@@ -62,7 +65,8 @@
         "layout_type": "4-door",
         "panel_count": 4,
         "has_display_screen": false
-      }
+      },
+      "model_3d_url": "assets/models/M876GBB231.glb"
     },
     {
       "name": "LG 디오스 AI 오브제컬렉션 냉장고 Fit & Max",
@@ -78,7 +82,8 @@
         "layout_type": "4-door",
         "panel_count": 4,
         "has_display_screen": false
-      }
+      },
+      "model_3d_url": "assets/models/M616GBB0M1.glb"
     }
   ],
   "washers": [
@@ -112,7 +117,8 @@
         "layout_type": "top-load",
         "panel_count": 1,
         "has_display_screen": false
-      }
+      },
+      "model_3d_url": "assets/models/TR15WV5.glb"
     },
     {
       "name": "LG 통돌이 세탁기",
@@ -128,7 +134,8 @@
         "layout_type": "top-load",
         "panel_count": 1,
         "has_display_screen": true
-      }
+      },
+      "model_3d_url": "assets/models/T17DX3A.glb"
     },
     {
       "name": "LG 트롬 오브제컬렉션 세탁기",
@@ -194,7 +201,8 @@
         "layout_type": "single-door",
         "panel_count": 1,
         "has_display_screen": false
-      }
+      },
+      "model_3d_url": "assets/models/FQ17GU1ED2.glb"
     },
     {
       "name": "LG 휘센 AI 오브제컬렉션 위너 에어컨 2in1 (1시리즈)",
@@ -210,7 +218,8 @@
         "layout_type": "single-door",
         "panel_count": 1,
         "has_display_screen": false
-      }
+      },
+      "model_3d_url": "assets/models/FQ17GW1HD2.glb"
     },
     {
       "name": "LG 휘센 벽걸이에어컨",
@@ -242,7 +251,8 @@
         "layout_type": "single-door",
         "panel_count": 1,
         "has_display_screen": false
-      }
+      },
+      "model_3d_url": "assets/models/FQ17GW1HD1.glb"
     }
   ],
   "dryers": [
