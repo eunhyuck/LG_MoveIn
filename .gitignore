@@ -1,3 +1,6 @@
+# API Keys (절대 커밋 금지)
+env.json
+
 # Miscellaneous
 *.class
 *.log
