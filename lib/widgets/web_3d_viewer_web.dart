@@ -434,6 +434,36 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
     #alternatives-container::-webkit-scrollbar-thumb:hover {
       background: rgba(255, 255, 255, 0.4);
     }
+
+    /* Premium UI Feedbacks */
+    .swap-card {
+      transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer;
+    }
+    .swap-card:active {
+      transform: scale(0.96);
+      background: rgba(255, 255, 255, 0.12) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    }
+    .swap-card.current:active {
+      background: rgba(230, 0, 126, 0.2) !important;
+    }
+
+    .close-btn {
+      transition: background-color 0.2s, transform 0.1s;
+    }
+    .close-btn:active {
+      transform: scale(0.9);
+      background: rgba(255, 255, 255, 0.3) !important;
+    }
+
+    .swap-action-btn {
+      transition: background-color 0.2s, transform 0.1s, border-color 0.2s;
+    }
+    .swap-action-btn:not(:disabled):active {
+      transform: scale(0.96);
+      background: #b30062 !important;
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -445,22 +475,22 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
   <!-- Alternative Appliances Swap Panel -->
   <div id="swapPanel" style="
     position: absolute;
-    bottom: -280px;
+    bottom: -370px;
     left: 0;
     width: 100%;
-    height: 240px;
-    background: rgba(20, 20, 20, 0.9);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 24px 24px 0px 0px;
+    height: 310px;
+    background: rgba(20, 20, 20, 0.88);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 28px 28px 0px 0px;
     z-index: 1005;
-    transition: bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: bottom 0.35s cubic-bezier(0.16, 1, 0.3, 1);
     font-family: sans-serif;
     color: white;
     padding: 16px 16px 8px 16px;
     box-sizing: border-box;
-    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
   ">
@@ -472,7 +502,7 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
         </div>
         <div id="swap-title" style="font-size: 14px; font-weight: bold; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; color: #ffffff;">Appliance Name</div>
       </div>
-      <button onclick="event.stopPropagation(); hideSwapPanel(); clearSelectionWithoutHidingPanel();" style="background: rgba(255,255,255,0.15); border: none; border-radius: 50%; width: 32px; height: 32px; color: white; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; margin-left: 10px; flex-shrink: 0;">✕</button>
+      <button class="close-btn" onclick="event.stopPropagation(); hideSwapPanel(); clearSelectionWithoutHidingPanel();" style="background: rgba(255,255,255,0.12); border: none; border-radius: 50%; width: 32px; height: 32px; color: white; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; margin-left: 10px; flex-shrink: 0;">✕</button>
     </div>
     
     <div style="font-size: 11px; font-weight: bold; margin-bottom: 8px; color: #e6007e; display: flex; align-items: center; gap: 4px;">
@@ -516,7 +546,7 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
     const scene = new THREE.Scene();
     
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, roomSize * 20);
-    camera.position.set(roomSize * 3.5, roomSize * 5.0, roomSize * 3.5);
+    camera.position.set(roomSize * 0.8, roomSize * 1.13, roomSize * 0.8);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -1188,7 +1218,14 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
     function clearSelectionWithoutHidingPanel() {
       if (boxHelper) {
         scene.remove(boxHelper);
-        boxHelper.dispose();
+        if (boxHelper.geometry) boxHelper.geometry.dispose();
+        if (boxHelper.material) {
+          if (Array.isArray(boxHelper.material)) {
+            boxHelper.material.forEach(m => m.dispose());
+          } else {
+            boxHelper.material.dispose();
+          }
+        }
         boxHelper = null;
       }
       selectedGroup = null;
@@ -1222,6 +1259,7 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
           const isCurrent = item.code === el.code;
           
           const card = document.createElement('div');
+          card.className = 'swap-card' + (isCurrent ? ' current' : '');
           card.style.flex = '0 0 185px';
           card.style.background = isCurrent ? 'rgba(230, 0, 126, 0.15)' : 'rgba(255, 255, 255, 0.08)';
           card.style.border = isCurrent ? '1.5px solid #e6007e' : '1px solid rgba(255, 255, 255, 0.15)';
@@ -1248,7 +1286,7 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
                 <div style="font-size: 13px; font-weight: bold; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 4px;">${item.name}</div>
                 <div style="font-size: 11px; color: #b0b5c0;">W ${Math.round(item.width_mm/10)} x H ${Math.round(item.height_mm/10)} x D ${Math.round(item.depth_mm/10)} cm</div>
               </div>
-              <button ${isCurrent ? 'disabled' : ''} onclick="triggerSwap('${el.id}', '${item.code}', '${item.name.replace(/'/g, "\\'")}', '${item.model_3d_url || ''}', ${item.width_mm/10}, ${item.height_mm/10}, ${item.depth_mm/10})" style="
+              <button class="swap-action-btn" ${isCurrent ? 'disabled' : ''} onclick="triggerSwap('${el.id}', '${item.code}', '${item.name.replace(/'/g, "\\'")}', '${item.model_3d_url || ''}', ${item.width_mm/10}, ${item.height_mm/10}, ${item.depth_mm/10})" style="
                 width: 100%;
                 padding: 8px 6px;
                 background: ${isCurrent ? 'transparent' : '#e6007e'};
@@ -1277,7 +1315,7 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
     function hideSwapPanel() {
       const swapPanel = document.getElementById('swapPanel');
       if (swapPanel) {
-        swapPanel.style.bottom = '-360px';
+        swapPanel.style.bottom = '-370px';
       }
     }
 

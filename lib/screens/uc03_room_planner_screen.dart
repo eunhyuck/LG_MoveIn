@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../widgets/web_3d_viewer.dart';
 import '../widgets/vr_room_viewer_stub.dart';
+import 'vr_fullscreen_page.dart';
 
 class HexColor {
   static Color fromHex(String hexString) {
@@ -1432,40 +1433,171 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
             })
         .toList();
 
-    return Column(
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1C24), // 프리미엄 다크 그레이
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: const Color(0xFFE6007E).withOpacity(0.15),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // VR 헤드셋 애니메이션풍 대형 아이콘
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE6007E).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.vrpano_outlined,
+                        size: 40,
+                        color: Color(0xFFE6007E),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "가전 배치 VR 탐색",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "스마트폰을 VR 카드보드 헤드셋에 장착하여\n가상의 방을 360도로 생생하게 둘러보세요.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.7),
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Divider(color: Color(0xFF2E2C34), thickness: 1),
+                  const SizedBox(height: 16),
+
+                  // 기능 특징 소개 목록
+                  _buildLandingFeature(
+                    Icons.screen_rotation,
+                    "가로 전체화면 모드 전환",
+                    "VR 기기 장착에 최적화되도록 가로 방향 전체화면으로 즉시 전환됩니다.",
+                  ),
+                  const SizedBox(height: 14),
+                  _buildLandingFeature(
+                    Icons.sensors,
+                    "자이로센서 헤드 트래킹",
+                    "고개를 360도로 돌려 원하는 위치와 가전 배치를 확인하세요.",
+                  ),
+                  const SizedBox(height: 14),
+                  _buildLandingFeature(
+                    Icons.remove_red_eye_outlined,
+                    "시선 고정 (Gaze) 인터랙션",
+                    "배치된 가전을 2초 동안 바라보면 가전 스펙 정보를 확인할 수 있습니다.",
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // 시작하기 버튼
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => VRFullScreenPage(
+                            elements: elementsList,
+                            productsDatabase: _productsDatabase,
+                          ),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFE6007E), Color(0xFFB0005E)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFE6007E).withOpacity(0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Text(
+                          "VR 탐색 시작하기",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLandingFeature(IconData icon, String title, String description) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.vrpano_outlined, size: 14, color: Color(0xFFE6007E)),
-              SizedBox(width: 4),
-              Flexible(
-                child: Text(
-                  '🥽 스마트폰을 VR 헤드셋에 넣고 고개를 돌려 탐색하세요',
-                  style: TextStyle(fontSize: 11, color: Color(0xFF8A877F)),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
+        Icon(icon, size: 20, color: const Color(0xFFE6007E)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.white.withOpacity(0.55),
+                  height: 1.4,
                 ),
               ),
             ],
-          ),
-        ),
-        Expanded(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: VRRoomViewer(
-                elements: elementsList,
-                productsDatabase: _productsDatabase,
-              ),
-            ),
           ),
         ),
       ],
