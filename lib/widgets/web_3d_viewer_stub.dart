@@ -1219,19 +1219,27 @@ class _ThreeDWebviewRoomViewerState extends State<ThreeDWebviewRoomViewer> {
               </div>
               <button class="swap-action-btn" ${isCurrent ? 'disabled' : ''} onclick="triggerSwap('${el.id}', '${item.code}', '${item.name.replace(/'/g, "\\'")}', '${item.model_3d_url || ''}', ${item.width_mm/10}, ${item.height_mm/10}, ${item.depth_mm/10})" style="
                 width: 100%;
-                padding: 8px 6px;
+                padding: 6px 4px;
                 background: ${isCurrent ? 'transparent' : '#e6007e'};
                 border: ${isCurrent ? '1px solid rgba(230,0,126,0.4)' : 'none'};
                 color: ${isCurrent ? '#e6007e' : 'white'};
-                font-size: 12px;
+                font-size: 10.5px;
                 font-weight: bold;
                 border-radius: 8px;
                 margin-top: 10px;
                 cursor: pointer;
                 outline: none;
                 transition: background 0.2s;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 2px;
               ">
-                ${isCurrent ? '현재 배치됨' : '교체하기'}
+                ${isCurrent 
+                  ? '<span>현재 배치됨</span>' 
+                  : `<span>구독 ${getAppliancePrices(category, item.code).sub}</span>
+                     <span style="font-size: 8.5px; opacity: 0.85; font-weight: normal;">일시불 ${getAppliancePrices(category, item.code).used}</span>`
+                }
               </button>
             </div>
           `;
@@ -1241,6 +1249,32 @@ class _ThreeDWebviewRoomViewerState extends State<ThreeDWebviewRoomViewer> {
       }
       
       swapPanel.style.bottom = '0px';
+    }
+
+    function getAppliancePrices(category, itemCode) {
+      let basePrice = 1000000;
+      if (category === 'refrigerators') {
+        basePrice = 1200000;
+      } else if (category === 'washers') {
+        basePrice = 700000;
+      } else if (category === 'dryers') {
+        basePrice = 800000;
+      } else if (category === 'air-conditioners') {
+        basePrice = 1500000;
+      }
+      
+      let hash = 0;
+      for (let i = 0; i < itemCode.length; i++) {
+        hash = itemCode.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      let factor = 0.8 + (Math.abs(hash % 4) * 0.1);
+      let finalPrice = Math.round((basePrice * factor) / 10000) * 10000;
+      let subPrice = Math.round((finalPrice / 24) / 100) * 100;
+      
+      return {
+        used: (finalPrice / 10000) + '만원',
+        sub: '월 ' + subPrice.toLocaleString() + '원'
+      };
     }
 
     function hideSwapPanel() {

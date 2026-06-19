@@ -173,8 +173,8 @@ class _ListingCard extends StatelessWidget {
             ClipRRect(
               borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
               child: SizedBox(
-                width: 100,
-                height: 100,
+                width: 110,
+                height: 110,
                 child: listing.imageDataUrl != null
                     ? Image.memory(base64Decode(listing.imageDataUrl!.split(',').last), fit: BoxFit.cover)
                     : listing.imageNetworkUrl != null
@@ -194,7 +194,7 @@ class _ListingCard extends StatelessWidget {
             // Info
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -209,28 +209,57 @@ class _ListingCard extends StatelessWidget {
                         ],
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 5),
                     Text(
                       listing.title,
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF2B2A27)),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      listing.modelHint,
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF8A877F)),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
+                    // 구독 · 매매 가격 행
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          '${(listing.price / 10000).round()}만원',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF2B2A27)),
+                        // 구독
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE6007E).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.subscriptions_outlined, size: 11, color: Color(0xFFE6007E)),
+                              const SizedBox(width: 3),
+                              Text(
+                                _subscriptionPrice(listing.price),
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFE6007E)),
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 6),
+                        // 매매
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2B2A27).withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.shopping_bag_outlined, size: 11, color: Color(0xFF2B2A27)),
+                              const SizedBox(width: 3),
+                              Text(
+                                '${(listing.price / 10000).round()}만원',
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2B2A27)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
                         Text(timeAgo, style: const TextStyle(fontSize: 11, color: Color(0xFFADA9A1))),
                       ],
                     ),
@@ -242,6 +271,15 @@ class _ListingCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _subscriptionPrice(int price) {
+    if (price <= 0) return '-';
+    final monthly = ((price / 24) / 1000).round() * 1000;
+    final wan = monthly / 10000;
+    return wan >= 1
+        ? '월 ${wan.toStringAsFixed(wan == wan.roundToDouble() ? 0 : 1)}만원~'
+        : '월 ${(monthly / 1000).round()}천원~';
   }
 
   Widget _badge(String text, Color color) {

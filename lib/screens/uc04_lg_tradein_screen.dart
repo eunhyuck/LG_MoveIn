@@ -164,8 +164,22 @@ class LgTradeInScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 120),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomNavigationBar(context),
+    );
+  }
 
+  Widget _buildBottomNavigationBar(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF5F3EE),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             // 신청 버튼
             SizedBox(
               width: double.infinity,
@@ -187,9 +201,7 @@ class LgTradeInScreen extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 12),
-
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
@@ -203,8 +215,6 @@ class LgTradeInScreen extends StatelessWidget {
                 child: const Text('돌아가기', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
-
-            const SizedBox(height: 32),
           ],
         ),
       ),

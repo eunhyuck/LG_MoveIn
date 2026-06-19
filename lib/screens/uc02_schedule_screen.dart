@@ -37,7 +37,60 @@ class _UC02ScheduleScreenState extends State<UC02ScheduleScreen> {
         duration: const Duration(milliseconds: 300),
         child: _buildStepContent(),
       ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
+  }
+
+  Widget? _buildBottomNavigationBar() {
+    switch (_step) {
+      case 0:
+        return Container(
+          color: const Color(0xFFF4F5F8),
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+          child: SafeArea(
+            child: _buildGradientButton(
+              label: "이사 등록 시작",
+              onPressed: () => setState(() => _step = 1),
+            ),
+          ),
+        );
+      case 1:
+        return Container(
+          color: const Color(0xFFF4F5F8),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: SafeArea(
+            child: _buildGradientButton(
+              label: "다음 단계",
+              onPressed: () => setState(() => _step = 2),
+            ),
+          ),
+        );
+      case 2:
+        return Container(
+          color: const Color(0xFFF4F5F8),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: SafeArea(
+            child: _buildGradientButton(
+              label: "저장하고 D-Day 만들기",
+              onPressed: () {
+                final state = MoveInState.instance;
+                state.moveDate = _selectedDate;
+                state.departureAddress = _departureAddr;
+                state.arrivalAddress = _arrivalAddr;
+                state.moveType = _moveType;
+                state.isDDayConfigured = true;
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("이사 일정이 성공적으로 등록되었습니다!")),
+                );
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        );
+      default:
+        return null;
+    }
   }
 
   Widget _buildStepContent() {
@@ -231,11 +284,6 @@ class _UC02ScheduleScreenState extends State<UC02ScheduleScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 14, color: Color(0xFF5F5D58), height: 1.5),
           ),
-          const SizedBox(height: 40),
-          _buildGradientButton(
-            label: "이사 등록 시작",
-            onPressed: () => setState(() => _step = 1),
-          ),
         ],
       ),
     );
@@ -340,11 +388,6 @@ class _UC02ScheduleScreenState extends State<UC02ScheduleScreen> {
             ),
           ),
           const SizedBox(height: 20),
-
-          _buildGradientButton(
-            label: "다음 단계",
-            onPressed: () => setState(() => _step = 2),
-          ),
         ],
       ),
     );
@@ -462,24 +505,7 @@ class _UC02ScheduleScreenState extends State<UC02ScheduleScreen> {
             controller: TextEditingController(text: _arrivalAddr),
             onChanged: (val) => _arrivalAddr = val,
           ),
-          const SizedBox(height: 40),
-
-          _buildGradientButton(
-            label: "저장하고 D-Day 만들기",
-            onPressed: () {
-              final state = MoveInState.instance;
-              state.moveDate = _selectedDate;
-              state.departureAddress = _departureAddr;
-              state.arrivalAddress = _arrivalAddr;
-              state.moveType = _moveType;
-              state.isDDayConfigured = true;
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("이사 일정이 성공적으로 등록되었습니다!")),
-              );
-              Navigator.pop(context);
-            },
-          ),
+          const SizedBox(height: 100),
         ],
       ),
     );

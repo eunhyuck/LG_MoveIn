@@ -63,81 +63,7 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
   bool _loadingRecs = false;
   List<dynamic> _usedListings = []; // 시세 조회 중 가져온 중고 실거래 매물
 
-  // 제품 페이지 메타 캐시 (productUrl → Future<(image, price)>)
-  final _metaFutures = <String, Future<({String? image, int? price})>>{};
 
-  Future<({String? image, int? price})> _fetchProductMeta(String productUrl) async {
-    try {
-      final res = await http.get(
-        Uri.parse(productUrl),
-        headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
-      ).timeout(const Duration(seconds: 8));
-
-      if (res.statusCode != 200) return (image: null, price: null);
-      final body = res.body;
-
-      // og:image
-      String? image;
-      for (final p in [
-        RegExp(r'''property=["']og:image["'][^>]+content=["']([^"']+)["']'''),
-        RegExp(r'''content=["']([^"']+)["'][^>]+property=["']og:image["']'''),
-      ]) {
-        final m = p.firstMatch(body);
-        if (m != null) { image = m.group(1); break; }
-      }
-
-      // 가격 — JSON-LD → JS 변수 → 메타 태그 순서로 시도
-      int? price = _parsePriceJsonLd(body)
-          ?? _parsePriceJs(body)
-          ?? _parsePriceMeta(body);
-
-      return (image: image, price: price);
-    } catch (_) {
-      return (image: null, price: null);
-    }
-  }
-
-  static int? _cleanPrice(String? raw) {
-    if (raw == null) return null;
-    final n = int.tryParse(raw.replaceAll(RegExp(r'[^0-9]'), ''));
-    if (n == null) return null;
-    return (n >= 50000 && n <= 15000000) ? n : null;
-  }
-
-  static int? _parsePriceJsonLd(String body) {
-    final scripts = RegExp(r'<script[^>]+application/ld\+json[^>]*>(.*?)</script>', dotAll: true)
-        .allMatches(body);
-    for (final s in scripts) {
-      try {
-        final raw = s.group(1)!;
-        for (final key in ['salePrice', 'lowPrice', 'price', 'regularPrice']) {
-          final m = RegExp('"$key"\\s*:\\s*"?([0-9]{5,})"?').firstMatch(raw);
-          if (m != null) {
-            final p = _cleanPrice(m.group(1));
-            if (p != null) return p;
-          }
-        }
-      } catch (_) {}
-    }
-    return null;
-  }
-
-  static int? _parsePriceJs(String body) {
-    for (final key in ['salePrice', 'price', 'regularPrice', 'originalPrice', 'productPrice']) {
-      final m = RegExp("[\"']?$key[\"']?\\s*[:=]\\s*[\"']?([0-9]{5,})[\"']?").firstMatch(body);
-      if (m != null) {
-        final p = _cleanPrice(m.group(1));
-        if (p != null) return p;
-      }
-    }
-    return null;
-  }
-
-  static int? _parsePriceMeta(String body) {
-    final m = RegExp("product:price:amount[\"'][^>]+content=[\"']([0-9,]+)[\"']").firstMatch(body)
-        ?? RegExp("content=[\"']([0-9,]+)[\"'][^>]+product:price:amount").firstMatch(body);
-    return _cleanPrice(m?.group(1));
-  }
 
   static const _analysisLabels = [
     '📷  사진 분석 중...',
@@ -820,7 +746,73 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
           Expanded(child: _isAnalyzing ? _buildAnalyzing() : _buildStep()),
         ],
       ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
+  }
+
+  Widget? _buildBottomNavigationBar() {
+    if (_isAnalyzing) return null;
+
+    final priceRec = _priceRec > 0 ? '${(_priceRec / 10000).round()}만원' : '-';
+
+    switch (_step) {
+      case 0:
+        return Container(
+          color: const Color(0xFFF5F3EE),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: SafeArea(
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _dataUrls.isNotEmpty ? _startAnalysis : null,
+                icon: const Icon(Icons.auto_awesome),
+                label: const Text('AI 감정 시작', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE6007E),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: const Color(0xFFE0DED8),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ),
+        );
+      case 1:
+        return Container(
+          color: const Color(0xFFF5F3EE),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: SafeArea(
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isAnalyzing ? null : _recalculatePrice,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2B2A27),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+                child: _isAnalyzing
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('이 정보로 시세 계산하기', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ),
+        );
+      case 2:
+        return Container(
+          color: const Color(0xFFF5F3EE),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+          child: SafeArea(
+            child: _buildDisposalAction(priceRec),
+          ),
+        );
+      default:
+        return null;
+    }
   }
 
   Widget _buildStep() {
@@ -1321,21 +1313,7 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
           const Text('• 정면 사진이 마켓 썸네일로 자동 사용됩니다\n• 하자 부위가 있다면 따로 찍어주세요', style: TextStyle(fontSize: 11, color: Color(0xFFADA9A1), height: 1.6)),
           const SizedBox(height: 32),
 
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _dataUrls.isNotEmpty ? _startAnalysis : null,
-              icon: const Icon(Icons.auto_awesome),
-              label: const Text('AI 감정 시작', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE6007E),
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: const Color(0xFFE0DED8),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ),
+          const SizedBox(height: 100),
         ],
       ),
     );
@@ -1456,22 +1434,7 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
             ),
           ),
 
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isAnalyzing ? null : _recalculatePrice,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2B2A27),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: _isAnalyzing
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('이 정보로 시세 계산하기', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ),
+          const SizedBox(height: 100),
         ],
       ),
     );
@@ -1803,9 +1766,7 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
               ),
             );
           }),
-          const SizedBox(height: 4),
-          _buildDisposalAction(priceRec),
-          const SizedBox(height: 20),
+          const SizedBox(height: 100),
         ],
       ),
     );
@@ -2593,226 +2554,9 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
     }).toList();
   }
 
-  List<Widget> _buildRecSections() {
-    final same = _recommendations.where((r) => r['_sameCategory'] == true).toList();
-    final other = _recommendations.where((r) => r['_sameCategory'] != true).toList();
-    final widgets = <Widget>[];
 
-    final isAiRecs = same.isNotEmpty && same.first['_aiGenerated'] == true;
-    if (same.isNotEmpty) {
-      widgets.add(Padding(
-        padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
-        child: Row(children: [
-          Container(width: 3, height: 14, color: const Color(0xFFE6007E)),
-          const SizedBox(width: 8),
-          Text(
-            '${_normalizeCategory(_categoryCtrl.text)} LG 신제품',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2B2A27)),
-          ),
-          if (isAiRecs) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: const Color(0xFFE6007E).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-              child: const Text('AI 추천', style: TextStyle(fontSize: 10, color: Color(0xFFE6007E), fontWeight: FontWeight.w600)),
-            ),
-          ],
-        ]),
-      ));
-      for (final rec in same) widgets.add(_buildRecCard(rec));
-    }
 
-    if (other.isNotEmpty) {
-      widgets.add(Padding(
-        padding: const EdgeInsets.fromLTRB(4, 16, 4, 6),
-        child: Row(children: [
-          Container(width: 3, height: 14, color: const Color(0xFF8A877F)),
-          const SizedBox(width: 8),
-          const Text(
-            '다른 LG 추천 제품',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF8A877F)),
-          ),
-        ]),
-      ));
-      for (final rec in other) widgets.add(_buildRecCard(rec));
-    }
 
-    return widgets;
-  }
-
-  Widget _buildRecCard(Map<String, dynamic> rec) {
-    final name = rec['name'] as String? ?? '-';
-    final modelCode = rec['model_code'] as String? ?? '';
-    final priceRaw = rec['price_new_krw'];
-    final priceStr = priceRaw != null
-        ? '${((priceRaw as num) / 10000).round()}만원'
-        : '가격 미정';
-    final energyGrade = rec['energy_grade'] as String?;
-    final capacity = rec['capacity_l'];
-    final thinq = rec['thinq_wifi'] as bool? ?? false;
-    final upAppliance = rec['up_appliance'] as bool? ?? false;
-    final images = rec['images'] as List<dynamic>?;
-    final imageUrl = images != null && images.isNotEmpty ? images.first as String : null;
-
-    final isAiGenerated = rec['_aiGenerated'] == true;
-    final specSummary = rec['spec_summary'] as String?;
-
-    final chips = <String>[];
-    if (energyGrade != null) chips.add('에너지 $energyGrade등급');
-    if (capacity != null) chips.add('${capacity}L');
-    if (thinq) chips.add('ThinQ');
-    if (upAppliance) chips.add('UP가전');
-    if (isAiGenerated && specSummary != null) chips.add(specSummary);
-
-    final productUrl = rec['product_url'] as String?;
-
-    return GestureDetector(
-      onTap: productUrl != null && productUrl.isNotEmpty
-          ? () async {
-              final uri = Uri.tryParse(productUrl);
-              if (uri != null && await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            }
-          : null,
-      child: Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 이미지 + 실시간 가격 페치 (DB 값 없을 때 LG 페이지에서 직접 읽음)
-          if (productUrl != null && productUrl.isNotEmpty)
-            FutureBuilder<({String? image, int? price})>(
-              future: _metaFutures.putIfAbsent(productUrl, () => _fetchProductMeta(productUrl)),
-              builder: (ctx, snap) {
-                final liveImage = snap.data?.image;
-                final livePrice = snap.data?.price;
-
-                // 실시간 가격이 있고 DB에 없으면 카드에 반영 (setState 없이 표시만)
-                if (livePrice != null && priceRaw == null && snap.connectionState == ConnectionState.done) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) setState(() => rec['price_new_krw'] = livePrice);
-                  });
-                }
-
-                final displayImage = imageUrl ?? liveImage;
-                return ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: Stack(
-                    children: [
-                      displayImage != null
-                          ? Image.network(
-                              displayImage,
-                              width: double.infinity,
-                              height: 180,
-                              fit: BoxFit.contain,
-                              errorBuilder: (ctx, e, s) => _noImageBox(),
-                            )
-                          : snap.connectionState == ConnectionState.waiting
-                              ? const SizedBox(height: 180, child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFE6007E))))
-                              : _noImageBox(),
-                      // 실시간 가격 배지
-                      if (livePrice != null && priceRaw == null && snap.connectionState == ConnectionState.done)
-                        Positioned(
-                          top: 8, right: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(color: const Color(0xFF2B2A27).withValues(alpha: 0.85), borderRadius: BorderRadius.circular(8)),
-                            child: Text('실시간 ${(livePrice / 10000).round()}만원', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              },
-            )
-          else
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: imageUrl != null
-                  ? Image.network(imageUrl, width: double.infinity, height: 180, fit: BoxFit.contain, errorBuilder: (ctx, e, s) => _noImageBox())
-                  : _noImageBox(),
-            ),
-
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 모델코드 + UP가전 배지
-                Row(
-                  children: [
-                    Text(modelCode, style: const TextStyle(fontSize: 11, color: Color(0xFF8A877F))),
-                    const Spacer(),
-                    if (upAppliance)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xFF2B2A27), borderRadius: BorderRadius.circular(20)),
-                        child: const Text('UP가전', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2B2A27)), maxLines: 2, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 8),
-
-                // 스펙 칩
-                if (chips.isNotEmpty) Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: chips.map((c) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: const Color(0xFFF0EEE8), borderRadius: BorderRadius.circular(20)),
-                    child: Text(c, style: const TextStyle(fontSize: 11, color: Color(0xFF5F5D58))),
-                  )).toList(),
-                ),
-                const SizedBox(height: 12),
-
-                Row(
-                  children: [
-                    Text(priceStr, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFE6007E))),
-                    const Spacer(),
-                    OutlinedButton.icon(
-                      onPressed: productUrl != null && productUrl.isNotEmpty
-                          ? () async {
-                              final uri = Uri.tryParse(productUrl);
-                              if (uri != null && await canLaunchUrl(uri)) {
-                                await launchUrl(uri, mode: LaunchMode.externalApplication);
-                              }
-                            }
-                          : null,
-                      icon: const Icon(Icons.open_in_new, size: 13),
-                      label: const Text('LG 공식', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF2B2A27),
-                        side: const BorderSide(color: Color(0xFFE0DED8)),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        minimumSize: Size.zero,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      ),
-    );
-  }
-
-  Widget _noImageBox() => Container(
-    width: double.infinity,
-    height: 180,
-    color: const Color(0xFFF5F4F0),
-    child: const Icon(Icons.kitchen_outlined, size: 48, color: Color(0xFFCCC9C0)),
-  );
 
   Widget _priceLabel(String label, String value, Color valueColor) => Column(
     children: [

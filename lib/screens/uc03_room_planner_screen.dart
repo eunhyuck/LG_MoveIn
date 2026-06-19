@@ -427,7 +427,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("AI 룸 플래너 (UC-03)"),
+        title: const Text("AI 룸 플래너"),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF2B2A27),
         elevation: 0,

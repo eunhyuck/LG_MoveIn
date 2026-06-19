@@ -17,7 +17,7 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
   int _step = 0;
   bool _isScanning = false;
   bool _isFlashActive = false;
-  double _overlayOpacity = 0.4;
+
   String _selectedCategory = '거실 벽면';
 
   // Paste helper and dialog state tracking
@@ -323,7 +323,7 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
               )
             : null,
         title: const Text(
-          "이사 안심 리포트 (UC-05)",
+          "이사 안심 리포트",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         backgroundColor: Colors.white,
@@ -347,7 +347,183 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
             ),
         ],
       ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
+  }
+
+  Widget? _buildBottomNavigationBar() {
+    if (_isScanning) return null;
+
+    switch (_step) {
+      case 0:
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: BorderSide(color: Color(0xFFE2E4E8), width: 1),
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _step = 1; // Go to Pre-move photo registration
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE6007E),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: const Text("체크리스트 확인 완료 및 사진 등록", style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ),
+          ),
+        );
+      case 1:
+        bool canProceed = _uploadedBeforePhotos.values.any((uploaded) => uploaded);
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: BorderSide(color: Color(0xFFE2E4E8), width: 1),
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: canProceed
+                      ? () {
+                          // Find the first category that is uploaded to use as active matching target
+                          String activeCat = _uploadedBeforePhotos.keys.firstWhere(
+                            (k) => _uploadedBeforePhotos[k]!,
+                            orElse: () => '거실 벽면',
+                          );
+                          setState(() {
+                            _selectedCategory = activeCat;
+                            _step = 2; // Go to Post-move match & scan (Step 2)
+                          });
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2B2A27),
+                    disabledBackgroundColor: const Color(0xFFE2E4E8),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: const Text("이사 전 상태 기록 완료", style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ),
+          ),
+        );
+      case 3:
+        final scanned = _scannedCategories.keys.where((k) => _scannedCategories[k]!).toList();
+        final uploadedBeforeCategories = _uploadedBeforePhotos.keys
+            .where((k) => _uploadedBeforePhotos[k]!)
+            .toList();
+        final hasMoreToScan = uploadedBeforeCategories.length > scanned.length;
+
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: BorderSide(color: Color(0xFFE2E4E8), width: 1),
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _step = 0;
+                          _uploadedBeforePhotos.updateAll((key, value) => false);
+                          _uploadedAfterPhotos.updateAll((key, value) => false);
+                          _customBeforeImageUrls.updateAll((key, value) => null);
+                          _customAfterImageUrls.updateAll((key, value) => null);
+                          _scannedCategories.updateAll((key, value) => false);
+                          _defectAnalyses.updateAll((key, value) => null);
+                          _checklistState.updateAll((key, value) => [false, false, false]);
+                        });
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF2B2A27),
+                        side: const BorderSide(color: Color(0xFFE2E4E8)),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text("처음으로 돌아가기"),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  if (hasMoreToScan)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          String nextCat = uploadedBeforeCategories.firstWhere(
+                            (c) => !_scannedCategories[c]!,
+                            orElse: () => uploadedBeforeCategories.first,
+                          );
+                          setState(() {
+                            _selectedCategory = nextCat;
+                            _step = 2; // Go to Post-move match & scan (Step 3)
+                          });
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFE6007E),
+                          side: const BorderSide(color: Color(0xFFE6007E)),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text("다른 공간 추가 분석"),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("이삿짐업체 제출용 하자 대조 증빙 리포트 및 해결 신청이 접수되었습니다. (접수 번호: MOVE-IN-UC05-8291)"),
+                              backgroundColor: Color(0xFFE6007E),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE6007E),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        child: const Text("이사 분쟁 조정 및 AS 접수", style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      default:
+        return null;
+    }
   }
 
   Widget _buildSafeReportBody() {
@@ -653,26 +829,7 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
             );
           }),
 
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _step = 1; // Go to Pre-move photo registration
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE6007E),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-              child: const Text("체크리스트 확인 완료 및 사진 등록", style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 100),
         ],
       ),
     );
@@ -680,8 +837,6 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
 
   // STEP 1: Pre-move recording screen
   Widget _buildStepPreMove() {
-    bool canProceed = _uploadedBeforePhotos.values.any((uploaded) => uploaded);
-
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -736,34 +891,6 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
                   }
                 });
               }).toList(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: canProceed
-                  ? () {
-                      // Find the first category that is uploaded to use as active matching target
-                      String activeCat = _uploadedBeforePhotos.keys.firstWhere(
-                        (k) => _uploadedBeforePhotos[k]!,
-                        orElse: () => '거실 벽면',
-                      );
-                      setState(() {
-                        _selectedCategory = activeCat;
-                        _step = 2; // Go to Post-move match & scan (Step 2)
-                      });
-                    }
-                  : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2B2A27),
-                disabledBackgroundColor: const Color(0xFFE2E4E8),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-              child: const Text("이사 전 상태 기록 완료", style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -1175,9 +1302,7 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
     });
   }
 
-  // STEP 1: Post-move matching shot screen (camera with transparent overlay)
   Widget _buildStepPostMoveGuide() {
-    final hasBeforeImage = _customBeforeImageUrls[_selectedCategory] != null;
     final hasAfterImage = _customAfterImageUrls[_selectedCategory] != null;
 
     // Get list of categories that have before photos uploaded
@@ -1294,25 +1419,7 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
                         ),
                 ),
 
-                // 2. Pre-move Ghost Overlay (No pink holographic color filter!)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Opacity(
-                      opacity: _overlayOpacity,
-                      child: hasBeforeImage
-                          ? _buildImageWidget(
-                              _customBeforeImageUrls[_selectedCategory]!,
-                              fit: BoxFit.cover,
-                            )
-                          : CustomPaint(
-                              painter: RoomPainter(
-                                  roomType: _selectedCategory,
-                                  showDefect: false,
-                                  isWireframe: true),
-                            ),
-                    ),
-                  ),
-                ),
+
 
                 // 3. Camera crosshair grid lines
                 Positioned.fill(
@@ -1332,47 +1439,7 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
                   ),
                 ),
 
-                // Overlay Opacity Slider
-                Positioned(
-                  bottom: 150,
-                  left: 20,
-                  right: 20,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.opacity, color: Colors.white, size: 16),
-                        const SizedBox(width: 8),
-                        const Text(
-                          "이전 가이드 투명도",
-                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                        Expanded(
-                          child: Slider(
-                            value: _overlayOpacity,
-                            onChanged: (val) {
-                              setState(() {
-                                _overlayOpacity = val;
-                              });
-                            },
-                            min: 0.0,
-                            max: 1.0,
-                            activeColor: const Color(0xFFE6007E),
-                            inactiveColor: Colors.white24,
-                          ),
-                        ),
-                        Text(
-                          "${(_overlayOpacity * 100).toInt()}%",
-                          style: const TextStyle(color: Colors.white, fontSize: 11, fontFamily: 'monospace'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+
 
                 // Upload & Control Buttons
                 Positioned(
@@ -1524,10 +1591,6 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
   // STEP 2: Report dashboard screen
   Widget _buildStepAnalysisReport() {
     final scanned = _scannedCategories.keys.where((k) => _scannedCategories[k]!).toList();
-    final uploadedBeforeCategories = _uploadedBeforePhotos.keys
-        .where((k) => _uploadedBeforePhotos[k]!)
-        .toList();
-    final hasMoreToScan = uploadedBeforeCategories.length > scanned.length;
 
     int riskScore = _getDynamicOverallRiskScore();
     String riskLabel = "안심";
@@ -1760,80 +1823,7 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
                 );
               }).toList(),
             ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    setState(() {
-                      _step = 0;
-                      _uploadedBeforePhotos.updateAll((key, value) => false);
-                      _uploadedAfterPhotos.updateAll((key, value) => false);
-                      _customBeforeImageUrls.updateAll((key, value) => null);
-                      _customAfterImageUrls.updateAll((key, value) => null);
-                      _scannedCategories.updateAll((key, value) => false);
-                      _defectAnalyses.updateAll((key, value) => null);
-                      _checklistState.updateAll((key, value) => [false, false, false]);
-                    });
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF2B2A27),
-                    side: const BorderSide(color: Color(0xFFE2E4E8)),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text("처음으로 돌아가기"),
-                ),
-              ),
-              const SizedBox(width: 12),
-              if (hasMoreToScan)
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      String nextCat = uploadedBeforeCategories.firstWhere(
-                        (c) => !_scannedCategories[c]!,
-                        orElse: () => uploadedBeforeCategories.first,
-                      );
-                      setState(() {
-                        _selectedCategory = nextCat;
-                        _step = 2; // Go to Post-move match & scan (Step 3)
-                      });
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFE6007E),
-                      side: const BorderSide(color: Color(0xFFE6007E)),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text("다른 공간 추가 분석"),
-                  ),
-                )
-              else
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("이삿짐업체 제출용 하자 대조 증빙 리포트 및 해결 신청이 접수되었습니다. (접수 번호: MOVE-IN-UC05-8291)"),
-                          backgroundColor: Color(0xFFE6007E),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE6007E),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    child: const Text("이사 분쟁 조정 및 AS 접수", style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 100),
         ],
       ),
     );
