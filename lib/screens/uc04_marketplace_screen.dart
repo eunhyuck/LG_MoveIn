@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:lg_move_in/models/move_in_state.dart';
+import 'package:lg_move_in/screens/uc04_trade_in_screen.dart';
 
 class UC04MarketplaceScreen extends StatefulWidget {
   const UC04MarketplaceScreen({super.key});
@@ -11,7 +12,19 @@ class UC04MarketplaceScreen extends StatefulWidget {
 
 class _UC04MarketplaceScreenState extends State<UC04MarketplaceScreen> {
   String _selectedCategory = '전체';
-  final _categories = ['전체', '냉장고', '세탁기', '에어컨', '건조기'];
+  final _categories = ['전체', '냉장고', '세탁기', '에어컨', '공기청정기', '청소기', '정수기', '식기세척기', '워시타워', '건조기'];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadListings();
+  }
+
+  Future<void> _loadListings() async {
+    await MoveInState.instance.loadMarketListings();
+    if (mounted) setState(() => _loading = false);
+  }
 
   List<TradeInListing> get _filtered {
     final all = MoveInState.instance.marketListings;
@@ -22,6 +35,18 @@ class _UC04MarketplaceScreenState extends State<UC04MarketplaceScreen> {
   @override
   Widget build(BuildContext context) {
     final listings = _filtered;
+
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('중고 가전 마켓'),
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF2B2A27),
+          elevation: 0,
+        ),
+        body: const Center(child: CircularProgressIndicator(color: Color(0xFFE6007E))),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -34,12 +59,22 @@ class _UC04MarketplaceScreenState extends State<UC04MarketplaceScreen> {
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Text(
-                '${MoveInState.instance.marketListings.length}개',
+                '${listings.length}개',
                 style: const TextStyle(fontSize: 13, color: Color(0xFF8A877F)),
               ),
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const UC04TradeInScreen()),
+        ),
+        backgroundColor: const Color(0xFFE6007E),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.auto_awesome_rounded, size: 20),
+        label: const Text('AI 감정하기', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
       ),
       body: Column(
         children: [
@@ -141,14 +176,19 @@ class _ListingCard extends StatelessWidget {
                 width: 100,
                 height: 100,
                 child: listing.imageDataUrl != null
-                    ? Image.memory(
-                        base64Decode(listing.imageDataUrl!.split(',').last),
-                        fit: BoxFit.cover,
-                      )
-                    : Container(
-                        color: const Color(0xFFF0EEE8),
-                        child: Icon(_categoryIcon(listing.category), size: 36, color: const Color(0xFFADA9A1)),
-                      ),
+                    ? Image.memory(base64Decode(listing.imageDataUrl!.split(',').last), fit: BoxFit.cover)
+                    : listing.imageNetworkUrl != null
+                        ? Image.network(listing.imageNetworkUrl!, fit: BoxFit.contain,
+                            color: const Color(0xFFF0EEE8),
+                            colorBlendMode: BlendMode.dstOver,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xFFF0EEE8),
+                              child: Icon(_categoryIcon(listing.category), size: 36, color: const Color(0xFFADA9A1)),
+                            ))
+                        : Container(
+                            color: const Color(0xFFF0EEE8),
+                            child: Icon(_categoryIcon(listing.category), size: 36, color: const Color(0xFFADA9A1)),
+                          ),
               ),
             ),
             // Info
@@ -439,6 +479,15 @@ class _ListingDetailScreen extends StatelessWidget {
   final TradeInListing listing;
   const _ListingDetailScreen({required this.listing});
 
+  String _subscriptionPrice(int price) {
+    if (price <= 0) return '-';
+    final monthly = ((price / 24) / 1000).round() * 1000;
+    final wan = monthly / 10000;
+    return wan >= 1
+        ? '월 ${wan.toStringAsFixed(wan == wan.roundToDouble() ? 0 : 1)}만원~'
+        : '월 ${(monthly / 1000).round()}천원~';
+  }
+
   @override
   Widget build(BuildContext context) {
     final gradeColor = switch (listing.grade) {
@@ -446,6 +495,8 @@ class _ListingDetailScreen extends StatelessWidget {
       'B' => const Color(0xFF8A877F),
       _ => const Color(0xFFE6007E),
     };
+    final subPrice = _subscriptionPrice(listing.price);
+    final priceStr = '${(listing.price / 10000).round()}만원';
 
     return Scaffold(
       appBar: AppBar(
@@ -461,16 +512,21 @@ class _ListingDetailScreen extends StatelessWidget {
             // Photo area
             SizedBox(
               width: double.infinity,
-              height: 280,
+              height: 240,
               child: listing.imageDataUrl != null
-                  ? Image.memory(
-                      base64Decode(listing.imageDataUrl!.split(',').last),
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      color: const Color(0xFFF0EEE8),
-                      child: Icon(_categoryIcon(listing.category), size: 80, color: const Color(0xFFADA9A1)),
-                    ),
+                  ? Image.memory(base64Decode(listing.imageDataUrl!.split(',').last), fit: BoxFit.cover)
+                  : listing.imageNetworkUrl != null
+                      ? Image.network(listing.imageNetworkUrl!, fit: BoxFit.contain,
+                          color: const Color(0xFFF0EEE8),
+                          colorBlendMode: BlendMode.dstOver,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: const Color(0xFFF0EEE8),
+                            child: Icon(_categoryIcon(listing.category), size: 80, color: const Color(0xFFADA9A1)),
+                          ))
+                      : Container(
+                          color: const Color(0xFFF0EEE8),
+                          child: Icon(_categoryIcon(listing.category), size: 80, color: const Color(0xFFADA9A1)),
+                        ),
             ),
             Padding(
               padding: const EdgeInsets.all(20),
@@ -481,45 +537,107 @@ class _ListingDetailScreen extends StatelessWidget {
                   Row(
                     children: [
                       _badge(listing.category, const Color(0xFF2B2A27)),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       _badge('${listing.grade}급', gradeColor),
+                      const SizedBox(width: 6),
+                      _badge('LG 인증', const Color(0xFFE6007E)),
                       if (listing.isMine) ...[
-                        const SizedBox(width: 8),
-                        _badge('내 게시글', const Color(0xFFE6007E)),
+                        const SizedBox(width: 6),
+                        _badge('내 게시글', const Color(0xFF8A877F)),
                       ],
                     ],
                   ),
                   const SizedBox(height: 12),
                   Text(listing.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF2B2A27))),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${(listing.price / 10000).round()}만원',
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFFE6007E)),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '시세 ${(listing.priceMin / 10000).round()}만원 ~ ${(listing.priceMax / 10000).round()}만원',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF8A877F)),
-                  ),
-                  const SizedBox(height: 16),
-                  // Seller / time
-                  Row(
-                    children: [
-                      const CircleAvatar(radius: 14, backgroundColor: Color(0xFFE0DED8), child: Icon(Icons.person, size: 16, color: Color(0xFF8A877F))),
-                      const SizedBox(width: 8),
-                      Text(listing.seller, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                      const Spacer(),
-                      Text(_timeAgo(listing.postedAt), style: const TextStyle(fontSize: 12, color: Color(0xFFADA9A1))),
-                    ],
+                  const SizedBox(height: 6),
+                  Row(children: [
+                    const CircleAvatar(radius: 13, backgroundColor: Color(0xFFE0DED8), child: Icon(Icons.person, size: 14, color: Color(0xFF8A877F))),
+                    const SizedBox(width: 7),
+                    Text(listing.seller, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    const Spacer(),
+                    Text(_timeAgo(listing.postedAt), style: const TextStyle(fontSize: 12, color: Color(0xFFADA9A1))),
+                  ]),
+                  const SizedBox(height: 18),
+
+                  // ── 구독 vs 매매 투트랙 ──
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2B2A27),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('이용 방법 선택', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                        const SizedBox(height: 14),
+                        Row(children: [
+                          // 구독
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE6007E).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE6007E).withValues(alpha: 0.5)),
+                              ),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                const Row(children: [
+                                  Icon(Icons.subscriptions_outlined, color: Color(0xFFE6007E), size: 15),
+                                  SizedBox(width: 4),
+                                  Text('구독', style: TextStyle(color: Color(0xFFE6007E), fontWeight: FontWeight.bold, fontSize: 13)),
+                                ]),
+                                const SizedBox(height: 8),
+                                Text(subPrice, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                                const SizedBox(height: 4),
+                                const Text('A/S 포함 · 부담 없이', style: TextStyle(color: Color(0xFFADA9A1), fontSize: 10)),
+                              ]),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          // 매매
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                              ),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                const Row(children: [
+                                  Icon(Icons.shopping_bag_outlined, color: Colors.white70, size: 15),
+                                  SizedBox(width: 4),
+                                  Text('매매', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, fontSize: 13)),
+                                ]),
+                                const SizedBox(height: 8),
+                                Text(priceStr, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                                const SizedBox(height: 4),
+                                const Text('일시불 · 내 소유', style: TextStyle(color: Color(0xFFADA9A1), fontSize: 10)),
+                              ]),
+                            ),
+                          ),
+                        ]),
+                        if (listing.priceMin > 0) ...[
+                          const SizedBox(height: 10),
+                          Center(
+                            child: Text(
+                              '시세 ${(listing.priceMin / 10000).round()}만~${(listing.priceMax / 10000).round()}만원',
+                              style: const TextStyle(color: Color(0xFF8A877F), fontSize: 11),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
                   const Divider(color: Color(0xFFE0DED8)),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   // Body
                   Text(listing.body, style: const TextStyle(fontSize: 14, color: Color(0xFF2B2A27), height: 1.7)),
                   // Defects
                   if (listing.defects.isNotEmpty) ...[
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -533,19 +651,17 @@ class _ListingDetailScreen extends StatelessWidget {
                           const SizedBox(height: 8),
                           ...listing.defects.map((d) => Padding(
                             padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.warning_amber_rounded, size: 14, color: Color(0xFFE65100)),
-                                const SizedBox(width: 6),
-                                Text(d, style: const TextStyle(fontSize: 13)),
-                              ],
-                            ),
+                            child: Row(children: [
+                              const Icon(Icons.warning_amber_rounded, size: 14, color: Color(0xFFE65100)),
+                              const SizedBox(width: 6),
+                              Text(d, style: const TextStyle(fontSize: 13)),
+                            ]),
                           )),
                         ],
                       ),
                     ),
                   ],
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 100),
                 ],
               ),
             ),
@@ -588,20 +704,39 @@ class _ListingDetailScreen extends StatelessWidget {
                     ),
                   ],
                 )
-              : ElevatedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('판매자에게 채팅을 보냈습니다.')),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE6007E),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              : Row(children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('구독 신청이 접수되었습니다.')),
+                      ),
+                      icon: const Icon(Icons.subscriptions_outlined, size: 16),
+                      label: Text(subPrice, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFE6007E),
+                        side: const BorderSide(color: Color(0xFFE6007E)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
                   ),
-                  child: const Text('채팅으로 문의하기', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('판매자에게 채팅을 보냈습니다.')),
+                      ),
+                      icon: const Icon(Icons.shopping_bag_outlined, size: 16),
+                      label: const Text('매매 문의', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2B2A27),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ]),
         ),
       ),
     );
