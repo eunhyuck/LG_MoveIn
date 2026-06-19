@@ -625,6 +625,8 @@ class AppraiseService {
         'contents': {'text': {'maxCharacters': 400}},
         if (domains != null) 'includeDomains': domains,
       };
+      // ignore: avoid_print
+      print('[Exa] 검색: $query');
       final resp = await http
           .post(
             Uri.parse(_exaUrl),
@@ -636,11 +638,64 @@ class AppraiseService {
           )
           .timeout(const Duration(seconds: 40));
 
+      // ignore: avoid_print
+      print('[Exa] status=${resp.statusCode} body=${resp.body.length}bytes');
       final data = jsonDecode(resp.body) as Map<String, dynamic>;
-      return List<Map<String, dynamic>>.from(data['results'] ?? []);
-    } catch (_) {
+      final results = List<Map<String, dynamic>>.from(data['results'] ?? []);
+      // ignore: avoid_print
+      print('[Exa] 결과 ${results.length}개');
+      return results;
+    } catch (e) {
+      // ignore: avoid_print
+      print('[Exa] 실패: $e');
       return [];
     }
+  }
+
+  // Exa 실패 시 AI로 중고 매물 데이터 생성
+  static Future<List<Map<String, dynamic>>> generateUsedListings(
+    String category,
+    String brand,
+    String model, {
+    int priceMin = 0,
+    int priceMax = 0,
+  }) async {
+    final priceHint = priceMin > 0
+        ? '시세 범위: ${priceMin ~/ 10000}만~${priceMax ~/ 10000}만원'
+        : '';
+    final prompt =
+        '한국 중고 가전 마켓(번개장터, 당근마켓)에서 "$brand $category $model" 와 비슷한 매물 4개를 생성해주세요.\n'
+        '$priceHint\n'
+        '실제 매물처럼 자연스럽게, 각 항목:\n'
+        '- title: 판매 글 제목 (30자 이내)\n'
+        '- text: 매물 설명 (50자 이내)\n'
+        '- url: 빈 문자열\n'
+        '- _source: "번개장터" 또는 "당근마켓"\n'
+        '- _price: 만원 단위 정수 (예: 350000)\n'
+        'JSON 배열만 출력하세요.';
+
+    try {
+      final raw = await _visionChat(
+        [{'type': 'text', 'text': prompt}],
+        maxTokens: 800,
+        useProModel: false,
+        useJsonMime: false,
+      );
+      final arr = _extractJsonArray(raw);
+      if (arr != null) {
+        return arr.cast<Map<String, dynamic>>()
+            .map((e) => {
+                  'title': e['title'] ?? '',
+                  'text': e['text'] ?? '',
+                  'url': e['url'] ?? '',
+                  '_source': e['_source'] ?? '중고마켓',
+                  '_price': e['_price'] ?? 0,
+                  '_aiGenerated': true,
+                })
+            .toList();
+      }
+    } catch (_) {}
+    return [];
   }
 
   static Map<String, dynamic>? _extractJson(String raw) {

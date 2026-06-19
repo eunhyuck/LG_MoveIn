@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lg_move_in/models/move_in_state.dart';
 import 'package:lg_move_in/screens/uc02_schedule_screen.dart';
 import 'package:lg_move_in/screens/uc03_room_planner_screen.dart';
-import 'package:lg_move_in/screens/uc04_trade_in_screen.dart';
+import 'package:lg_move_in/screens/uc04_marketplace_screen.dart';
 import 'package:lg_move_in/screens/uc05_safe_report_screen.dart';
 import 'package:lg_move_in/screens/uc06_settlement_screen.dart';
 import 'package:lg_move_in/screens/uc07_community_screen.dart';
@@ -314,7 +314,7 @@ class _MoveInHubScreenState extends State<MoveInHubScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const UC04TradeInScreen(),
+                    builder: (context) => const UC04MarketplaceScreen(),
                   ),
                 );
               },
