@@ -42,6 +42,7 @@ dependencies:
   webview_flutter: ^4.13.1
   url_launcher: ^6.3.0
 
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -71,6 +72,7 @@ flutter:
     - assets/images/dryers/
     - assets/images/blueprints/
     - assets/images/services/
+    - assets/home_blue_print/114/
     - assets/models/
 
   # An image asset can refer to one or more resolution-specific "variants", see

@@ -66,5 +66,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>VR 모드에서 손가락 딱 소리를 감지하여 위치를 이동하기 위해 마이크 권한이 필요합니다.</string>
 </dict>
 </plist>

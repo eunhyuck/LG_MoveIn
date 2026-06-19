@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:model_viewer_plus/model_viewer_plus.dart';
@@ -8,119 +8,209 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'web_3d_viewer.dart';
 
 class Web3DViewerStub extends Web3DViewer {
-  const Web3DViewerStub({super.key, super.modelUrl, super.frontImage, super.elements});
+  const Web3DViewerStub({
+    super.key,
+    super.modelUrl,
+    super.frontImage,
+    super.elements,
+    super.productsDatabase,
+    super.onApplianceSwapped,
+  });
 
   @override
   Widget build(BuildContext context) {
     if (elements != null) {
-      return FullRoom3DViewer(elements: elements!);
+      return ThreeDWebviewRoomViewer(
+        elements: elements!,
+        productsDatabase: productsDatabase,
+        onApplianceSwapped: onApplianceSwapped,
+      );
     }
-
-    final resolvedUrl = modelUrl ?? 'assets/models/haier_refrigerator.glb';
-    return ModelViewer(
-      backgroundColor: const Color(0xFFF8F9FC),
-      src: resolvedUrl,
-      alt: "LG Appliance 3D model",
-      ar: false,
-      autoRotate: true,
-      cameraControls: true,
+    if (modelUrl != null && modelUrl!.isNotEmpty) {
+      return ModelViewer(
+        src: modelUrl!,
+        alt: 'LG 가전 3D 모델',
+        ar: false,
+        autoRotate: true,
+        cameraControls: true,
+        backgroundColor: const Color(0xFFF8F9FC),
+      );
+    }
+    if (frontImage != null && frontImage!.isNotEmpty) {
+      return Center(child: Image.asset(frontImage!, fit: BoxFit.contain));
+    }
+    return const Center(
+      child: Text('3D 모델을 불러올 수 없습니다.',
+          style: TextStyle(color: Color(0xFF8A877F), fontSize: 13)),
     );
   }
 }
 
-class FullRoom3DViewer extends StatefulWidget {
-  final List<Map<String, dynamic>> elements;
-  const FullRoom3DViewer({super.key, required this.elements});
-
-  @override
-  State<FullRoom3DViewer> createState() => _FullRoom3DViewerState();
+Web3DViewer getWeb3DViewer({
+  String? modelUrl,
+  String? frontImage,
+  List<Map<String, dynamic>>? elements,
+  Map<String, List<dynamic>>? productsDatabase,
+  void Function(
+    String id,
+    String code,
+    String name,
+    String? model3DUrl,
+    double dx,
+    double dy,
+    double dz,
+  )? onApplianceSwapped,
+}) {
+  return Web3DViewerStub(
+    modelUrl: modelUrl,
+    frontImage: frontImage,
+    elements: elements,
+    productsDatabase: productsDatabase,
+    onApplianceSwapped: onApplianceSwapped,
+  );
 }
 
-class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
+// ─────────────────────────────────────────────────────────────────────────────
+// ThreeDWebviewRoomViewer - Hosts WebGL Three.js inside Mobile Webview
+// ─────────────────────────────────────────────────────────────────────────────
+
+class ThreeDWebviewRoomViewer extends StatefulWidget {
+  final List<Map<String, dynamic>> elements;
+  final Map<String, List<dynamic>>? productsDatabase;
+  final void Function(
+    String id,
+    String code,
+    String name,
+    String? model3DUrl,
+    double dx,
+    double dy,
+    double dz,
+  )? onApplianceSwapped;
+
+  const ThreeDWebviewRoomViewer({
+    super.key,
+    required this.elements,
+    this.productsDatabase,
+    this.onApplianceSwapped,
+  });
+
+  @override
+  State<ThreeDWebviewRoomViewer> createState() => _ThreeDWebviewRoomViewerState();
+}
+
+class _ThreeDWebviewRoomViewerState extends State<ThreeDWebviewRoomViewer> {
   HttpServer? _server;
   WebViewController? _controller;
+  bool _isLoading = true;
   String? _serverUrl;
 
   @override
   void initState() {
     super.initState();
-    _startServer();
+    _startLocalServer();
   }
 
-  Future<void> _startServer() async {
+  Future<void> _startLocalServer() async {
     try {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      final port = server.port;
-      final serverUrl = 'http://127.0.0.1:$port/';
-      
-      setState(() {
-        _server = server;
-        _serverUrl = serverUrl;
+      _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final port = _server!.port;
+      _serverUrl = 'http://127.0.0.1:$port/';
+      print('Local Three.js server running at: $_serverUrl');
+
+      _server!.listen((HttpRequest request) async {
+        final path = request.uri.path;
+        
+        try {
+          if (path == '/') {
+            final htmlTemplate = _getHtmlTemplate();
+            request.response
+              ..headers.contentType = ContentType.html
+              ..write(htmlTemplate)
+              ..close();
+          } else if (path.startsWith('/assets/')) {
+            String assetPath = path.substring(1); // remove leading slash
+            if (assetPath.startsWith('assets/assets/')) {
+              assetPath = assetPath.substring(7);
+            }
+            try {
+              final byteData = await rootBundle.load(assetPath);
+              final bytes = byteData.buffer.asUint8List();
+              
+              // Set Content-Type
+              if (path.endsWith('.glb')) {
+                request.response.headers.contentType = ContentType('application', 'octet-stream');
+              } else if (path.endsWith('.js')) {
+                request.response.headers.contentType = ContentType('application', 'javascript');
+              } else if (path.endsWith('.png')) {
+                request.response.headers.contentType = ContentType('image', 'png');
+              } else if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
+                request.response.headers.contentType = ContentType('image', 'jpeg');
+              }
+              
+              request.response.add(bytes);
+            } catch (e) {
+              print('Failed to serve asset: $assetPath, error: $e');
+              request.response.statusCode = HttpStatus.notFound;
+            }
+            await request.response.close();
+          } else {
+            request.response
+              ..statusCode = HttpStatus.notFound
+              ..close();
+          }
+        } catch (e) {
+          print('Error serving local asset request: $e');
+          request.response
+            ..statusCode = HttpStatus.internalServerError
+            ..close();
+        }
       });
 
-      // Initialize WebViewController
       final controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setBackgroundColor(Colors.transparent);
-      
-      controller.loadRequest(Uri.parse(serverUrl));
-      
+        ..setBackgroundColor(const Color(0xFFF8F9FC))
+        ..setOnConsoleMessage((JavaScriptConsoleMessage message) {
+          debugPrint('WebView Console: ${message.message} (level: ${message.level.name})');
+        })
+        ..addJavaScriptChannel(
+          'ApplianceChannel',
+          onMessageReceived: (JavaScriptMessage message) {
+            try {
+              final data = json.decode(message.message) as Map<String, dynamic>;
+              if (data['action'] == 'swap' && widget.onApplianceSwapped != null) {
+                widget.onApplianceSwapped!(
+                  data['id'] as String,
+                  data['code'] as String,
+                  data['name'] as String,
+                  data['model3DUrl'] as String?,
+                  (data['dx'] as num).toDouble(),
+                  (data['dy'] as num).toDouble(),
+                  (data['dz'] as num).toDouble(),
+                );
+              }
+            } catch (e) {
+              print('Error decoding ApplianceChannel message: $e');
+            }
+          },
+        )
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onPageFinished: (url) {
+              if (mounted) {
+                setState(() {
+                  _isLoading = false;
+                });
+              }
+            },
+          ),
+        )
+        ..loadRequest(Uri.parse(_serverUrl!));
+
       setState(() {
         _controller = controller;
       });
-
-      server.listen((HttpRequest request) async {
-        final response = request.response;
-        final path = request.uri.path;
-
-        if (path == '/' || path == '/index.html') {
-          final htmlContent = _buildHtml();
-          final bytes = utf8.encode(htmlContent);
-          response
-            ..statusCode = HttpStatus.ok
-            ..headers.add('Content-Type', 'text/html;charset=UTF-8')
-            ..headers.add('Content-Length', bytes.length.toString())
-            ..headers.add('Access-Control-Allow-Origin', '*')
-            ..add(bytes);
-          await response.close();
-        } else if (path.endsWith('.glb')) {
-          String assetKey = path;
-          if (assetKey.startsWith('/')) {
-            assetKey = assetKey.substring(1);
-          }
-          final assetsIndex = assetKey.indexOf('assets/');
-          if (assetsIndex != -1) {
-            assetKey = assetKey.substring(assetsIndex);
-          } else {
-            if (!assetKey.startsWith('assets/')) {
-              assetKey = 'assets/$assetKey';
-            }
-          }
-          if (assetKey.startsWith('assets/assets/')) {
-            assetKey = assetKey.replaceFirst('assets/assets/', 'assets/');
-          }
-
-          try {
-            final data = await rootBundle.load(assetKey);
-            final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-            response
-              ..statusCode = HttpStatus.ok
-              ..headers.add('Content-Type', 'application/octet-stream')
-              ..headers.add('Content-Length', bytes.length.toString())
-              ..headers.add('Access-Control-Allow-Origin', '*')
-              ..add(bytes);
-          } catch (e) {
-            debugPrint('Failed to load asset $assetKey: $e');
-            response.statusCode = HttpStatus.notFound;
-          }
-          await response.close();
-        } else {
-          response.statusCode = HttpStatus.notFound;
-          await response.close();
-        }
-      });
     } catch (e) {
-      debugPrint('Failed to start loopback server: $e');
+      print('Failed to start local loopback server: $e');
     }
   }
 
@@ -130,13 +220,37 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
     super.dispose();
   }
 
-  String _buildHtml() {
+  @override
+  Widget build(BuildContext context) {
+    if (_controller == null) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFFE6007E)),
+      );
+    }
+    return Stack(
+      children: [
+        WebViewWidget(controller: _controller!),
+        if (_isLoading)
+          const Center(
+            child: CircularProgressIndicator(color: Color(0xFFE6007E)),
+          ),
+      ],
+    );
+  }
+
+  String _getHtmlTemplate() {
     final elementsJson = jsonEncode(widget.elements);
-    return '''
+    final dbJson = jsonEncode(widget.productsDatabase ?? {});
+    return _rawHtml
+        .replaceAll('__ELEMENTS_JSON__', elementsJson)
+        .replaceAll('__PRODUCTS_DATABASE_JSON__', dbJson);
+  }
+
+  static const String _rawHtml = r'''
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <style>
     body, html {
       margin: 0;
@@ -171,20 +285,20 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
     /* UI Buttons & Control Panel */
     #controls-panel {
       position: absolute;
-      top: 16px;
-      right: 16px;
+      top: 24px;
+      right: 24px;
       z-index: 1000;
       display: flex;
-      gap: 8px;
+      gap: 12px;
     }
     .control-btn {
       background: rgba(255, 255, 255, 0.85);
       backdrop-filter: blur(8px);
       border: 1.5px solid #e2e4e8;
-      padding: 8px 14px;
-      border-radius: 20px;
+      padding: 12px 20px;
+      border-radius: 24px;
       font-family: sans-serif;
-      font-size: 11px;
+      font-size: 13px;
       font-weight: bold;
       color: #555555;
       cursor: pointer;
@@ -229,50 +343,118 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
       box-shadow: 0 10px 30px rgba(0,0,0,0.3);
       max-width: 320px;
     }
+
+    /* Scrollbar Styling for Premium List */
+    #alternatives-container::-webkit-scrollbar {
+      height: 4px;
+    }
+    #alternatives-container::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 2px;
+    }
+    #alternatives-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+    #alternatives-container::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.4);
+    }
+
+    /* Premium UI Feedbacks */
+    .swap-card {
+      transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer;
+    }
+    .swap-card:active {
+      transform: scale(0.96);
+      background: rgba(255, 255, 255, 0.12) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    }
+    .swap-card.current:active {
+      background: rgba(230, 0, 126, 0.2) !important;
+    }
+
+    .close-btn {
+      transition: background-color 0.2s, transform 0.1s;
+    }
+    .close-btn:active {
+      transform: scale(0.9);
+      background: rgba(255, 255, 255, 0.3) !important;
+    }
+
+    .swap-action-btn {
+      transition: background-color 0.2s, transform 0.1s, border-color 0.2s;
+    }
+    .swap-action-btn:not(:disabled):active {
+      transform: scale(0.96);
+      background: #b30062 !important;
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/nipplejs@0.10.2/dist/nipplejs.min.js"></script>
 </head>
 <body>
   <div id="loading">LG 3D 가전 배치 공간 로딩 중...</div>
-  
-  <!-- UI Mode Switcher -->
-  <div id="controls-panel">
-    <button id="btn-orbit" class="control-btn active">전체 3D 보기 (Orbit)</button>
-    <button id="btn-fps" class="control-btn">1인칭 탐색 (FPS)</button>
-  </div>
 
-  <!-- FPS Mode Guide Overlay (Desktop Only) -->
-  <div id="fps-instructions">
-    <div class="instructions-card">
-      <div style="font-size: 16px; font-weight: bold; margin-bottom: 12px; color: #e6007e; display: flex; align-items: center; justify-content: center; gap: 6px;">
-        <span>✦</span> 1인칭 가상공간 체험
+  <!-- Alternative Appliances Swap Panel -->
+  <div id="swapPanel" style="
+    position: absolute;
+    bottom: -370px;
+    left: 0;
+    width: 100%;
+    height: 310px;
+    background: rgba(20, 20, 20, 0.88);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 28px 28px 0px 0px;
+    z-index: 1005;
+    transition: bottom 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: sans-serif;
+    color: white;
+    padding: 16px 16px 8px 16px;
+    box-sizing: border-box;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+  ">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+      <div style="flex: 1; min-width: 0;">
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+          <div id="swap-category-badge" style="font-size: 10px; font-weight: bold; background: #e6007e; color: white; padding: 2px 8px; border-radius: 10px; text-transform: uppercase;">Category</div>
+          <div id="swap-code" style="font-size: 11px; color: #b0b5c0;">Model Code</div>
+        </div>
+        <div id="swap-title" style="font-size: 14px; font-weight: bold; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; color: #ffffff;">Appliance Name</div>
       </div>
-      <div style="font-size: 12px; color: #e2e4e8; line-height: 1.6; margin-bottom: 20px; text-align: left;">
-        화면을 클릭하면 마우스 시점 조작이 활성화됩니다.<br><br>
-        • 이동: <b>W, A, S, D</b> 또는 방향키<br>
-        • 시점: 마우스 회전<br>
-        • 조작 종료: <b>ESC</b> 키 입력
-      </div>
-      <button style="background: #e6007e; border: none; color: white; padding: 10px 24px; font-weight: bold; border-radius: 20px; font-size: 12px; cursor: pointer; box-shadow: 0 4px 10px rgba(230,0,126,0.3);">입장하기</button>
+      <button class="close-btn" onclick="event.stopPropagation(); hideSwapPanel(); clearSelectionWithoutHidingPanel();" style="background: rgba(255,255,255,0.12); border: none; border-radius: 50%; width: 32px; height: 32px; color: white; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; margin-left: 10px; flex-shrink: 0;">✕</button>
+    </div>
+    
+    <div style="font-size: 11px; font-weight: bold; margin-bottom: 8px; color: #e6007e; display: flex; align-items: center; gap: 4px;">
+      <span>✦</span> 가전 교체 제안 리스트
+    </div>
+    <div id="alternatives-container" style="flex: 1; overflow-x: auto; display: flex; gap: 12px; padding-bottom: 4px; align-items: stretch;">
+      <!-- Populated dynamically -->
     </div>
   </div>
 
-  <!-- Mobile Control Elements -->
-  <div id="joystickZone" style="position: absolute; bottom: 30px; left: 30px; width: 100px; height: 100px; z-index: 1001; pointer-events: auto; display: none;"></div>
-  <div id="lookArea" style="position: absolute; top: 0; right: 0; width: 60%; height: 100%; z-index: 900; touch-action: none; display: none;"></div>
-
   <div id="canvas3d"></div>
+
 
   <script>
     const container = document.getElementById('canvas3d');
     const loadingEl = document.getElementById('loading');
 
     // Parse layout areaSize from elements
-    const elements = $elementsJson;
+    let elements = __ELEMENTS_JSON__;
+    const productsDb = __PRODUCTS_DATABASE_JSON__;
+
+    // Raycasting & Selection variables
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let selectedGroup = null;
+    let boxHelper = null;
+
     const areaSize = (elements.length > 0 && elements[0].areaSize) ? elements[0].areaSize : '84㎡ (25평)';
     
     let roomSize = 600;
@@ -284,11 +466,12 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
       roomSize = 800;
       glbName = 'apartment_34py.glb';
     }
+    roomSize = roomSize * 1.5;
 
     const scene = new THREE.Scene();
     
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
-    camera.position.set(roomSize * 0.75, roomSize * 0.58, roomSize * 0.75);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, roomSize * 20);
+    camera.position.set(roomSize * 0.8, roomSize * 1.13, roomSize * 0.8);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -305,11 +488,7 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
     controls.dampingFactor = 0.05;
     controls.maxPolarAngle = Math.PI / 2 - 0.02; 
     controls.minDistance = 50;
-    controls.maxDistance = 1000;
-
-    // First-Person Controls (FPS)
-    const fpsControls = new THREE.PointerLockControls(camera, renderer.domElement);
-    scene.add(fpsControls.getObject());
+    controls.maxDistance = roomSize * 8;
 
     // Procedural Textures Generation (CORS & Path Safe)
     function createWoodFloorTexture() {
@@ -431,69 +610,11 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
     floor.receiveShadow = true;
     scene.add(floor);
 
-    // Living Room Rug (Under the sofa)
-    const rug = new THREE.Mesh(new THREE.PlaneGeometry(240, 160), new THREE.MeshStandardMaterial({ 
-      map: createRugTexture(), 
-      roughness: 0.95 
-    }));
-    rug.rotation.x = -Math.PI / 2;
-    rug.position.set(0, 0.2, 80);
-    rug.receiveShadow = true;
-    scene.add(rug);
-
-    // Modern Sofa Group
-    const sofaGroup = new THREE.Group();
-    const fabricMat = new THREE.MeshStandardMaterial({ color: 0x3f3f46, roughness: 0.85 }); // charcoal grey fabric
+    // (Sofa and Rug removed as requested to avoid layout clutter)
     const metalLegMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.85, roughness: 0.2 });
 
-    // Seat base
-    const sofaBase = new THREE.Mesh(new THREE.BoxGeometry(180, 20, 80), fabricMat);
-    sofaBase.position.y = 15;
-    sofaBase.castShadow = true;
-    sofaBase.receiveShadow = true;
-    sofaGroup.add(sofaBase);
 
-    // Seat cushions
-    const cushion1 = new THREE.Mesh(new THREE.BoxGeometry(84, 12, 70), fabricMat);
-    cushion1.position.set(-43, 27, 2);
-    cushion1.castShadow = true;
-    sofaGroup.add(cushion1);
-    
-    const cushion2 = new THREE.Mesh(new THREE.BoxGeometry(84, 12, 70), fabricMat);
-    cushion2.position.set(43, 27, 2);
-    cushion2.castShadow = true;
-    sofaGroup.add(cushion2);
-
-    // Backrest
-    const backrest = new THREE.Mesh(new THREE.BoxGeometry(180, 48, 16), fabricMat);
-    backrest.position.set(0, 45, -34);
-    backrest.castShadow = true;
-    sofaGroup.add(backrest);
-
-    // Armrests
-    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(16, 38, 80), fabricMat);
-    leftArm.position.set(-90, 28, 0);
-    leftArm.castShadow = true;
-    sofaGroup.add(leftArm);
-
-    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(16, 38, 80), fabricMat);
-    rightArm.position.set(90, 28, 0);
-    rightArm.castShadow = true;
-    sofaGroup.add(rightArm);
-
-    // Legs
-    for (let lx of [-85, 85]) {
-      for (let lz of [-35, 35]) {
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(2, 1.5, 10), metalLegMat);
-        leg.position.set(lx, 5, lz);
-        leg.castShadow = true;
-        sofaGroup.add(leg);
-      }
-    }
-    sofaGroup.position.set(0, 0, 80);
-    scene.add(sofaGroup);
-
-    // Sleek Walnut Wood TV Cabinet stand
+    // TV Stand
     const standGroup = new THREE.Group();
     const walnutMat = new THREE.MeshStandardMaterial({ color: 0x543e2f, roughness: 0.65 });
     
@@ -511,10 +632,10 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
         standGroup.add(leg);
       }
     }
-    standGroup.position.set(0, 0, -250);
+    standGroup.position.set(0, 0, -250 * 1.5);
     scene.add(standGroup);
 
-    // Corner Houseplant pot
+    // Houseplant
     const plantGroup = new THREE.Group();
     const pot = new THREE.Mesh(new THREE.CylinderGeometry(15, 11, 26), new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.4 }));
     pot.position.y = 13;
@@ -531,25 +652,24 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
       leaf.castShadow = true;
       plantGroup.add(leaf);
     }
-    plantGroup.position.set(130, 0, -240);
+    plantGroup.position.set(130 * 1.5, 0, -240 * 1.5);
     scene.add(plantGroup);
 
-    // Grid helper on floor (each square = 20cm x 20cm)
+    // Grid helper
     const gridHelper = new THREE.GridHelper(roomSize, roomSize / 20, 0x8a877f, 0xe2e4e8);
     gridHelper.position.y = 0.05;
     scene.add(gridHelper);
 
-    // --- High-fidelity Apartment Dollhouse Generator (Fallback) ---
+    // Apartment dollhouse generator
     function generateSimulatedApartment() {
       const aptGroup = new THREE.Group();
       aptGroup.name = "simulated_apartment";
 
-      // Poche wall materials: beige sides, solid black tops
       const sideMat = new THREE.MeshStandardMaterial({ color: 0xeae6df, roughness: 0.95 });
-      const topMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a }); // black poche top
+      const topMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a });
       const wallMaterials = [sideMat, sideMat, topMat, sideMat, sideMat, sideMat];
       
-      const wallHeight = 120; // 120cm slice height (classic dollhouse view)
+      const wallHeight = 120;
       const wallThickness = 12;
 
       function addWall(x, z, w, d) {
@@ -566,14 +686,12 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
         windowGroup.position.set(x, 0, z);
         windowGroup.rotation.y = rotationY;
 
-        // Base low wall under window
         const base = new THREE.Mesh(new THREE.BoxGeometry(w, baseH, d), wallMaterials);
         base.position.y = baseH / 2;
         base.castShadow = true;
         base.receiveShadow = true;
         windowGroup.add(base);
 
-        // Glass panel
         const glassMat = new THREE.MeshStandardMaterial({
           color: 0x88ccff,
           transparent: true,
@@ -585,7 +703,6 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
         glass.position.y = baseH + (wallHeight - baseH) / 2;
         windowGroup.add(glass);
 
-        // White frame borders
         const frameMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
         
         const frameTop = new THREE.Mesh(new THREE.BoxGeometry(w, 4, d + 2), frameMat);
@@ -604,28 +721,23 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
         frameMid.position.set(0, baseH + (wallHeight - baseH)/2, 0);
         windowGroup.add(frameMid);
 
-        windowGroup.name = "window";
         aptGroup.add(windowGroup);
       }
 
       const half = roomSize / 2;
 
       if (roomSize === 450) {
-        // 18-pyeong layout (2 Rooms, Living/Kitchen, 1 Bath)
-        addWall(0, -half, roomSize, wallThickness); // Back outer wall
-        addWall(-half, 0, wallThickness, roomSize); // Left outer wall
-        addWall(half, 0, wallThickness, roomSize);  // Right outer wall
+        addWall(0, -half, roomSize, wallThickness);
+        addWall(-half, 0, wallThickness, roomSize);
+        addWall(half, 0, wallThickness, roomSize);
         
-        // Front walls with windows
         addWall(-150, half, 150, wallThickness);
         addWindow(0, half, 150, wallThickness);
         addWall(150, half, 150, wallThickness);
 
-        // Bedroom 1 (Master)
         addWall(-112.5, 37.5, 112.5, wallThickness);
         addWall(-56.25, 112.5, wallThickness, 150);
 
-        // Bathroom - Top left
         addWall(-150, -37.5, 120, wallThickness);
         addWall(-90, -75, wallThickness, 75);
 
@@ -636,41 +748,27 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
         bathFloor.position.set(-150, 0.5, -75);
         aptGroup.add(bathFloor);
 
-        // Kitchen Counter
         const counterMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
         const counter = new THREE.Mesh(new THREE.BoxGeometry(35, 85, 120), counterMat);
         counter.position.set(190, 85/2, -120);
         aptGroup.add(counter);
       } 
       else if (roomSize === 800) {
-        // 34-pyeong layout (Matched to real_blueprint.png)
-        // Outer boundaries of layout
-        addWall(0, -434, 800, wallThickness); // Back Wall
-        addWall(-400, 0, wallThickness, 868); // Left outer Wall
-        addWall(400, 0, wallThickness, 868);  // Right outer Wall
-        addWall(0, 434, 800, wallThickness);  // Bottom Wall
+        addWall(0, -434, 800, wallThickness);
+        addWall(-400, 0, wallThickness, 868);
+        addWall(400, 0, wallThickness, 868);
+        addWall(0, 434, 800, wallThickness);
 
-        // Vertical wall separating staircase/elevator column from apartment
         addWall(210, 0, wallThickness, 868);
 
-        // Internal Room Divider Walls
-        // Vertical wall between Column 1 (left) and Column 2 (center)
         addWall(-176, -74, wallThickness, 720);
-        // Vertical wall between Column 2 and Column 3
         addWall(27, -287, wallThickness, 294);
-        // Horizontal wall separating Balcony (top)
         addWall(-95, -324, 610, wallThickness);
-        // Horizontal wall between Bed 2.69 and Bath
         addWall(-288, -86, 224, wallThickness);
-        // Horizontal wall between Bath and Master Bed
         addWall(-288, 21, 224, wallThickness);
-        // Horizontal wall between Bed 2.20 and Living Room
         addWall(118, -54, 183, wallThickness);
-        // Bottom balcony partition
         addWall(-95, 286, 610, wallThickness);
 
-        // --- Floor Overlays ---
-        // Bathroom Floor (middle-left)
         const bathFloorGeo = new THREE.PlaneGeometry(224, 107);
         const bathFloorMat = new THREE.MeshStandardMaterial({ color: 0x5a5f66, roughness: 0.8 });
         const bathFloor = new THREE.Mesh(bathFloorGeo, bathFloorMat);
@@ -678,94 +776,69 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
         bathFloor.position.set(-288, 0.5, -32);
         aptGroup.add(bathFloor);
 
-        // Kitchen Counter (L-shape along bottom and right kitchen walls)
         const counterMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
         const counter = new THREE.Mesh(new THREE.BoxGeometry(100, 85, 40), counterMat);
         counter.position.set(-74, 85/2, -100);
         aptGroup.add(counter);
       } 
       else {
-        // Default 25-pyeong layout (Matched to the black-and-white APARTMENT 84 SQM FLOOR PLAN blueprint)
-        // Outer boundaries
-        addWall(0, -300, 600, wallThickness); // Back Wall
-        addWall(-300, 0, wallThickness, 600); // Left outer Wall
-        addWall(300, 0, wallThickness, 600);  // Right outer Wall
+        addWall(0, -300, 600, wallThickness);
+        addWall(-300, 0, wallThickness, 600);
+        addWall(300, 0, wallThickness, 600);
         
-        // Front wall partition (with bedroom windows & balcony sliding glass door)
         addWall(-200, 300, 200, wallThickness);
-        addWindow(0, 300, 200, wallThickness); // Living room front window
+        addWindow(0, 300, 200, wallThickness);
         addWall(200, 300, 200, wallThickness);
 
-        // Horizontal line splitting top half and bottom half
         addWall(-75, 0, 450, wallThickness);
-
-        // Vertical line separating Left side from Center/Hallway
         addWall(0, -90, wallThickness, 420);
 
-        // Bathroom 4.1 sqm (middle-left)
         addWall(-150, 60, wallThickness, 120);
         addWall(-225, 120, 150, wallThickness);
 
-        // Bedroom 2 (bottom-left) and Bedroom 2 (bottom-center) separator
         addWall(-100, 210, wallThickness, 180);
-
-        // Bedroom 2 (bottom-center) and Bedroom 3 separator
         addWall(100, 210, wallThickness, 180);
-
-        // Bedroom 3 and Foyer/Kitchen separator
         addWall(200, 150, wallThickness, 300);
 
-        // Bathroom 5.2 sqm (top-center)
         addWall(150, -50, wallThickness, 100);
         addWall(75, 0, 150, wallThickness);
 
-        // Kitchen / Dining separator
         addWall(250, 120, 100, wallThickness);
-
-        // Balcony partition (top-right)
         addWindow(200, -240, 200, wallThickness);
 
-        // --- Custom Floor Overlays (Tiling & Balcony) ---
-        // Public Bath Floor (top-center, dark tiles)
         const publicBathFloor = new THREE.Mesh(new THREE.PlaneGeometry(150, 100), new THREE.MeshStandardMaterial({ color: 0x5a5f66, roughness: 0.8 }));
         publicBathFloor.rotation.x = -Math.PI / 2;
         publicBathFloor.position.set(75, 0.5, -50);
         publicBathFloor.receiveShadow = true;
         aptGroup.add(publicBathFloor);
 
-        // Master Bath Floor (middle-left)
         const masterBathFloor = new THREE.Mesh(new THREE.PlaneGeometry(150, 120), new THREE.MeshStandardMaterial({ color: 0x6c727a, roughness: 0.8 }));
         masterBathFloor.rotation.x = -Math.PI / 2;
         masterBathFloor.position.set(-225, 0.5, 60);
         masterBathFloor.receiveShadow = true;
         aptGroup.add(masterBathFloor);
 
-        // Entrance Tiled Floor (foyer)
         const entranceFloor = new THREE.Mesh(new THREE.PlaneGeometry(80, 180), new THREE.MeshStandardMaterial({ color: 0xdcdde1, roughness: 0.6 }));
         entranceFloor.rotation.x = -Math.PI / 2;
         entranceFloor.position.set(260, 0.5, 210);
         entranceFloor.receiveShadow = true;
         aptGroup.add(entranceFloor);
 
-        // Kitchen Floor: Light Marble look (bottom-right)
         const kitFloor = new THREE.Mesh(new THREE.PlaneGeometry(100, 120), new THREE.MeshStandardMaterial({ color: 0xf5f6fa, roughness: 0.2, metalness: 0.1 }));
         kitFloor.rotation.x = -Math.PI / 2;
         kitFloor.position.set(250, 0.5, 60);
         kitFloor.receiveShadow = true;
         aptGroup.add(kitFloor);
 
-        // Balcony Floor (top-right)
         const balconyFloor = new THREE.Mesh(new THREE.PlaneGeometry(200, 60), new THREE.MeshStandardMaterial({ color: 0xbfc7cc, roughness: 0.7 }));
         balconyFloor.rotation.x = -Math.PI / 2;
         balconyFloor.position.set(200, 0.5, -270);
         balconyFloor.receiveShadow = true;
         aptGroup.add(balconyFloor);
 
-        // --- Architectural Kitchen Counter Group ---
         const counterMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
-        const topMat = new THREE.MeshStandardMaterial({ color: 0x2f3542, roughness: 0.2, metalness: 0.2 }); // grey marble countertop
+        const topMat = new THREE.MeshStandardMaterial({ color: 0x2f3542, roughness: 0.2, metalness: 0.2 });
         
-        // Counter block (along kitchen bottom wall)
         const counter = new THREE.Mesh(new THREE.BoxGeometry(100, 85, 40), counterMat);
         counter.position.set(250, 85/2, 100);
         counter.castShadow = true;
@@ -777,7 +850,6 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
         counterTop.castShadow = true;
         aptGroup.add(counterTop);
 
-        // Side counter (along kitchen right wall)
         const counterSide = new THREE.Mesh(new THREE.BoxGeometry(40, 85, 100), counterMat);
         counterSide.position.set(280, 85/2, 50);
         counterSide.castShadow = true;
@@ -788,7 +860,6 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
         counterSideTop.castShadow = true;
         aptGroup.add(counterSideTop);
 
-        // Bath Glass screens
         const glassMat = new THREE.MeshStandardMaterial({ color: 0xa5d6a7, transparent: true, opacity: 0.35, roughness: 0.1 });
         const bathGlass = new THREE.Mesh(new THREE.BoxGeometry(2, 130, 45), glassMat);
         bathGlass.position.set(-150, 130/2, 60);
@@ -798,27 +869,58 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
       scene.add(aptGroup);
     }
 
+    function getPercentileBoundingBox(object, lowP = 0.008, highP = 0.992) {
+      let xs = [], ys = [], zs = [];
+      object.updateMatrixWorld(true);
+      object.traverse(node => {
+        if (node.isMesh && node.geometry) {
+          const pos = node.geometry.attributes.position;
+          if (pos) {
+            const v = new THREE.Vector3();
+            for (let i = 0; i < pos.count; i++) {
+              v.fromBufferAttribute(pos, i);
+              v.applyMatrix4(node.matrixWorld);
+              xs.push(v.x);
+              ys.push(v.y);
+              zs.push(v.z);
+            }
+          }
+        }
+      });
+      if (xs.length === 0) {
+        return new THREE.Box3().setFromObject(object);
+      }
+      xs.sort((a,b)=>a-b);
+      ys.sort((a,b)=>a-b);
+      zs.sort((a,b)=>a-b);
+      const val = (arr, p) => arr[Math.max(0, Math.min(arr.length-1, Math.floor(arr.length * p)))];
+      return new THREE.Box3(
+        new THREE.Vector3(val(xs, lowP), val(ys, lowP), val(zs, lowP)),
+        new THREE.Vector3(val(xs, highP), val(ys, highP), val(zs, highP))
+      );
+    }
+
     const loader = new THREE.GLTFLoader();
 
     function getModelSrc(name) {
       const lowercase = name.toLowerCase();
       let path = '';
       if (lowercase.includes('냉장고') || lowercase.includes('refrigerator')) {
-        path = 'assets/models/haier_refrigerator.glb';
+        path = 'assets/models/M876GBB231.glb';
       } else if (lowercase.includes('건조기') || lowercase.includes('dryer')) {
-        path = 'assets/models/washer_dryer_machine.glb';
-      } else if (lowercase.includes('세탁기') || lowercase.includes('washer')) {
-        path = 'assets/models/washing_machine.glb';
+        path = 'assets/models/RH10WTW.glb';
+      } else if (lowercase.includes('세탁기') || lowercase.includes('washer') || lowercase.includes('washing')) {
+        path = 'assets/models/T17DX3A.glb';
       } else if (lowercase.includes('에어컨') || lowercase.includes('air')) {
-        path = 'assets/models/air_conditioner.glb';
+        path = 'assets/models/SQ06GA1WAJ-AKOR.glb';
       } else {
-        path = 'assets/models/haier_refrigerator.glb';
+        path = 'assets/models/M876GBB231.glb';
       }
-      return path; // Return raw relative model path, server will resolve it
+      return 'assets/' + path;
     }
 
     function loadAppliances() {
-      const elements = $elementsJson;
+      const elements = __ELEMENTS_JSON__;
       let loadedCount = 0;
       const totalToLoad = elements.filter(el => el.isLG).length;
 
@@ -829,14 +931,24 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
       elements.forEach(el => {
         if (!el.isLG) return;
 
-        const src = getModelSrc(el.name);
+        let src = '';
+        if (el.model3DUrl) {
+          src = el.model3DUrl;
+          if (!src.startsWith('assets/')) {
+            src = 'assets/' + src;
+          }
+          if (!src.startsWith('assets/assets/')) {
+            src = 'assets/' + src;
+          }
+        } else {
+          src = getModelSrc(el.name);
+        }
         loader.load(src, (gltf) => {
           const model = gltf.scene;
 
           model.updateMatrixWorld(true);
 
-          // Calculate size and scale
-          const box = new THREE.Box3().setFromObject(model);
+          const box = getPercentileBoundingBox(model);
           const size = box.getSize(new THREE.Vector3());
 
           const sizeX = size.x;
@@ -858,7 +970,7 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
           model.rotation.y = rotateModel;
           model.updateMatrixWorld(true);
 
-          const adjustedBox = new THREE.Box3().setFromObject(model);
+          const adjustedBox = getPercentileBoundingBox(model);
           const bottomY = adjustedBox.min.y;
           const center = adjustedBox.getCenter(new THREE.Vector3());
 
@@ -868,7 +980,7 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
           model.position.set(-center.x, -bottomY, -center.z);
           wrapper.add(model);
 
-          wrapper.position.x = el.x * 3.0;
+          wrapper.position.x = el.x * (roomSize / 200.0);
           
           let targetY = el.y;
           if (el.name.toLowerCase().includes('벽걸이') || el.name.toLowerCase().includes('wall')) {
@@ -876,7 +988,7 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
           }
           
           wrapper.position.y = targetY;
-          wrapper.position.z = el.z * 3.0;
+          wrapper.position.z = el.z * (roomSize / 200.0);
 
           const lowercaseName = el.name.toLowerCase();
           if (lowercaseName.includes('냉장고') || lowercaseName.includes('refrigerator')) {
@@ -919,16 +1031,38 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
       });
     }
 
-    // Try loading 3D apartment blueprint model from server
     loader.load('assets/models/' + glbName, (gltf) => {
       const loadedApt = gltf.scene;
       loadedApt.name = 'apartment_glb';
+      
+      // Compute bounding box and normalize size
+      loadedApt.updateMatrixWorld(true);
+      const box = getPercentileBoundingBox(loadedApt);
+      const size = box.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.z);
+      
+      if (maxDim > 0) {
+        // Scale to fit roomSize
+        const targetScale = (roomSize * 0.95) / maxDim;
+        loadedApt.scale.set(targetScale, targetScale, targetScale);
+        loadedApt.updateMatrixWorld(true);
+        
+        // Center on floor (y = 0)
+        const centeredBox = getPercentileBoundingBox(loadedApt);
+        const center = centeredBox.getCenter(new THREE.Vector3());
+        loadedApt.position.set(-center.x, -centeredBox.min.y, -center.z);
+      }
+      
       scene.add(loadedApt);
 
       loadedApt.traverse(node => {
         if (node.isMesh) {
           node.castShadow = true;
           node.receiveShadow = true;
+          if (node.material) {
+            node.material.roughness = 0.6;
+            node.material.metalness = 0.2;
+          }
         }
       });
 
@@ -940,121 +1074,328 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
     });
 
 
-    // === Navigation Controls Logic ===
-    let currentMode = 'orbit'; // 'orbit' or 'fps'
-    const isMobile = true; // Hardcoded true inside mobile webview context
 
-    const btnOrbit = document.getElementById('btn-orbit');
-    const btnFps = document.getElementById('btn-fps');
-    const fpsInstructions = document.getElementById('fps-instructions');
-    const joystickZone = document.getElementById('joystickZone');
-    const lookArea = document.getElementById('lookArea');
+    // === Selection & Raycasting Logic ===
+    let pointerDownTime = 0;
+    let pointerDownX = 0;
+    let pointerDownY = 0;
 
-    function setMode(mode) {
-      currentMode = mode;
-      if (mode === 'orbit') {
-        btnOrbit.classList.add('active');
-        btnFps.classList.remove('active');
-        fpsInstructions.style.display = 'none';
-        joystickZone.style.display = 'none';
-        lookArea.style.display = 'none';
-        
-        fpsControls.unlock();
-        controls.enabled = true;
-        
-        // Reset camera to standard top-down overview
-        camera.position.set(roomSize * 0.75, roomSize * 0.58, roomSize * 0.75);
-        controls.target.set(0, 0, 0);
-      } else {
-        btnOrbit.classList.remove('active');
-        btnFps.classList.add('active');
-        controls.enabled = false;
-        
-        // Eye level height at room center
-        camera.position.set(0, 150, 150);
-        camera.lookAt(0, 150, -100);
-        
-        fpsInstructions.style.display = 'none';
-        joystickZone.style.display = 'block';
-        lookArea.style.display = 'block';
-        initJoystick();
-      }
-    }
-
-    btnOrbit.addEventListener('click', () => setMode('orbit'));
-    btnFps.addEventListener('click', () => setMode('fps'));
-
-    // Mobile joystick setup
-    let joystick = null;
-    let mobileMove = { x: 0, y: 0 };
-    
-    function initJoystick() {
-      if (joystick) return;
-      joystick = nipplejs.create({
-        zone: joystickZone,
-        mode: 'static',
-        position: { left: '50px', bottom: '50px' },
-        color: '#e6007e',
-        size: 80,
-      });
-      
-      joystick.on('move', (_, d) => {
-        if (d.vector) {
-          mobileMove.x = d.vector.x;
-          mobileMove.y = d.vector.y;
-        }
-      });
-      
-      joystick.on('end', () => {
-        mobileMove.x = 0;
-        mobileMove.y = 0;
-      });
-    }
-
-    // Mobile swipe to look around
-    let lookId = null, lastLX = 0, lastLY = 0;
-    let yaw = 0, pitch = 0;
-    
-    lookArea.addEventListener('touchstart', (e) => {
-      const t = e.touches[0];
-      lookId = t.identifier;
-      lastLX = t.clientX;
-      lastLY = t.clientY;
-    }, { passive: true });
-
-    lookArea.addEventListener('touchmove', (e) => {
-      for (const t of e.touches) {
-        if (t.identifier === lookId) {
-          const dx = t.clientX - lastLX;
-          const dy = t.clientY - lastLY;
-          lastLX = t.clientX;
-          lastLY = t.clientY;
-          
-          yaw -= dx * 0.005;
-          pitch -= dy * 0.005;
-          pitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, pitch));
-          
-          camera.rotation.order = 'YXZ';
-          camera.rotation.y = yaw;
-          camera.rotation.x = pitch;
-        }
-      }
-    }, { passive: true });
-
-    lookArea.addEventListener('touchend', () => {
-      lookId = null;
+    window.addEventListener('pointerdown', (e) => {
+      pointerDownTime = Date.now();
+      pointerDownX = e.clientX;
+      pointerDownY = e.clientY;
     });
 
-    // Camera boundaries clamping
-    function clampInside(pos) {
-      pos.y = 150; // Lock height at average eye level (1.5m)
-      const margin = 20; // Margin distance from walls
-      const limit = (roomSize / 2) - margin;
-      pos.x = Math.max(-limit, Math.min(limit, pos.x));
-      pos.z = Math.max(-limit, Math.min(limit, pos.z));
+    window.addEventListener('pointerup', (e) => {
+      const duration = Date.now() - pointerDownTime;
+      const dist = Math.hypot(e.clientX - pointerDownX, e.clientY - pointerDownY);
+      if (duration < 300 && dist < 10) {
+        onSceneClick(e);
+      }
+    });
+
+    function onSceneClick(event) {
+      if (event.target.closest('#swapPanel')) {
+        return;
+      }
+
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+
+      const appliances = [];
+      scene.traverse(node => {
+        if (node.isGroup && node.name && node.name.startsWith('appliance_')) {
+          appliances.push(node);
+        }
+      });
+
+      const intersects = raycaster.intersectObjects(appliances, true);
+
+      if (intersects.length > 0) {
+        let hit = intersects[0].object;
+        while (hit && hit.parent && hit !== scene) {
+          if (hit.name && hit.name.startsWith('appliance_')) {
+            break;
+          }
+          hit = hit.parent;
+        }
+
+        if (hit && hit.name && hit.name.startsWith('appliance_')) {
+          selectAppliance(hit);
+        } else {
+          clearSelection();
+        }
+      } else {
+        clearSelection();
+      }
     }
 
-    const clock = new THREE.Clock();
+    function selectAppliance(group) {
+      clearSelectionWithoutHidingPanel();
+      selectedGroup = group;
+
+      boxHelper = new THREE.BoxHelper(group, 0xe6007e);
+      scene.add(boxHelper);
+
+      const id = group.name.replace('appliance_', '');
+      const el = elements.find(item => item.id === id);
+      if (el) {
+        showSwapPanel(el);
+      }
+    }
+
+    function clearSelectionWithoutHidingPanel() {
+      if (boxHelper) {
+        scene.remove(boxHelper);
+        if (boxHelper.geometry) boxHelper.geometry.dispose();
+        if (boxHelper.material) {
+          if (Array.isArray(boxHelper.material)) {
+            boxHelper.material.forEach(m => m.dispose());
+          } else {
+            boxHelper.material.dispose();
+          }
+        }
+        boxHelper = null;
+      }
+      selectedGroup = null;
+    }
+
+    function clearSelection() {
+      clearSelectionWithoutHidingPanel();
+      hideSwapPanel();
+    }
+
+    function showSwapPanel(el) {
+      const swapPanel = document.getElementById('swapPanel');
+      const categoryBadge = document.getElementById('swap-category-badge');
+      const titleEl = document.getElementById('swap-title');
+      const codeEl = document.getElementById('swap-code');
+      const container = document.getElementById('alternatives-container');
+      
+      const category = getCategoryFromName(el.name);
+      categoryBadge.innerText = getCategoryDisplayName(category);
+      titleEl.innerText = el.name;
+      codeEl.innerText = el.code || 'LG 가전';
+      
+      container.innerHTML = '';
+      
+      const list = productsDb[category] || [];
+      
+      if (list.length === 0) {
+        container.innerHTML = '<div style="color: #b0b5c0; font-size: 12px; margin: auto;">제안 가능한 대체 가전이 없습니다.</div>';
+      } else {
+        list.forEach(item => {
+          const isCurrent = item.code === el.code;
+          
+          const card = document.createElement('div');
+          card.className = 'swap-card' + (isCurrent ? ' current' : '');
+          card.style.flex = '0 0 185px';
+          card.style.background = isCurrent ? 'rgba(230, 0, 126, 0.15)' : 'rgba(255, 255, 255, 0.08)';
+          card.style.border = isCurrent ? '1.5px solid #e6007e' : '1px solid rgba(255, 255, 255, 0.15)';
+          card.style.borderRadius = '16px';
+          card.style.padding = '14px';
+          card.style.display = 'flex';
+          card.style.flexDirection = 'column';
+          card.style.justifyContent = 'space-between';
+          card.style.boxSizing = 'border-box';
+          
+          let imgHtml = '';
+          if (item.front_image) {
+            let imgSrc = item.front_image;
+            if (!imgSrc.startsWith('assets/')) imgSrc = 'assets/' + imgSrc;
+            if (!imgSrc.startsWith('assets/assets/')) imgSrc = 'assets/' + imgSrc;
+            imgHtml = `<img src="${imgSrc}" style="width: 100%; height: 75px; object-fit: contain; margin-bottom: 8px; border-radius: 4px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`;
+          }
+          
+          card.innerHTML = `
+            <div style="display: flex; flex-direction: column; height: 100%; justify-content: space-between;">
+              <div>
+                ${imgHtml}
+                <div style="display: none; height: 75px; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 8px; align-items: center; justify-content: center; font-size: 24px; color: rgba(255,255,255,0.3)">✦</div>
+                <div style="font-size: 13px; font-weight: bold; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 4px;">${item.name}</div>
+                <div style="font-size: 11px; color: #b0b5c0;">W ${Math.round(item.width_mm/10)} x H ${Math.round(item.height_mm/10)} x D ${Math.round(item.depth_mm/10)} cm</div>
+              </div>
+              <button class="swap-action-btn" ${isCurrent ? 'disabled' : ''} onclick="triggerSwap('${el.id}', '${item.code}', '${item.name.replace(/'/g, "\\'")}', '${item.model_3d_url || ''}', ${item.width_mm/10}, ${item.height_mm/10}, ${item.depth_mm/10})" style="
+                width: 100%;
+                padding: 8px 6px;
+                background: ${isCurrent ? 'transparent' : '#e6007e'};
+                border: ${isCurrent ? '1px solid rgba(230,0,126,0.4)' : 'none'};
+                color: ${isCurrent ? '#e6007e' : 'white'};
+                font-size: 12px;
+                font-weight: bold;
+                border-radius: 8px;
+                margin-top: 10px;
+                cursor: pointer;
+                outline: none;
+                transition: background 0.2s;
+              ">
+                ${isCurrent ? '현재 배치됨' : '교체하기'}
+              </button>
+            </div>
+          `;
+          
+          container.appendChild(card);
+        });
+      }
+      
+      swapPanel.style.bottom = '0px';
+    }
+
+    function hideSwapPanel() {
+      const swapPanel = document.getElementById('swapPanel');
+      if (swapPanel) {
+        swapPanel.style.bottom = '-370px';
+      }
+    }
+
+    function getCategoryFromName(name) {
+      const lowercase = name.toLowerCase();
+      if (lowercase.includes('냉장고') || lowercase.includes('refrigerator')) {
+        return 'refrigerators';
+      } else if (lowercase.includes('건조기') || lowercase.includes('dryer')) {
+        return 'dryers';
+      } else if (lowercase.includes('세탁기') || lowercase.includes('washer') || lowercase.includes('washing')) {
+        return 'washers';
+      } else if (lowercase.includes('에어컨') || lowercase.includes('air')) {
+        return 'air-conditioners';
+      }
+      return 'refrigerators';
+    }
+
+    function getCategoryDisplayName(cat) {
+      switch(cat) {
+        case 'refrigerators': return '냉장고';
+        case 'washers': return '세탁기';
+        case 'dryers': return '건조기';
+        case 'air-conditioners': return '에어컨';
+        default: return '가전';
+      }
+    }
+
+    function triggerSwap(id, code, name, model3DUrl, width, height, depth) {
+      swapApplianceInScene(id, code, name, model3DUrl, width, height, depth);
+      
+      const payload = JSON.stringify({
+        action: 'swap',
+        id: id,
+        code: code,
+        name: name,
+        model3DUrl: model3DUrl,
+        dx: width,
+        dy: height,
+        dz: depth
+      });
+
+      if (window.ApplianceChannel && window.ApplianceChannel.postMessage) {
+        window.ApplianceChannel.postMessage(payload);
+      } else {
+        console.log('ApplianceChannel not found, testing/web message fallback.');
+        window.parent.postMessage(payload, '*');
+      }
+    }
+
+    function swapApplianceInScene(id, code, name, model3DUrl, width, height, depth) {
+      const wrapperName = 'appliance_' + id;
+      const oldWrapper = scene.getObjectByName(wrapperName);
+      if (!oldWrapper) {
+        console.error('Old appliance model wrapper not found in scene:', wrapperName);
+        return;
+      }
+
+      const positionX = oldWrapper.position.x;
+      const positionY = oldWrapper.position.y;
+      const positionZ = oldWrapper.position.z;
+      const rotationY = oldWrapper.rotation.y;
+
+      scene.remove(oldWrapper);
+
+      let src = model3DUrl;
+      if (src) {
+        if (!src.startsWith('assets/')) {
+          src = 'assets/' + src;
+        }
+        if (!src.startsWith('assets/assets/')) {
+          src = 'assets/' + src;
+        }
+      } else {
+        src = getModelSrc(name);
+      }
+
+      loadingEl.innerText = '가전 모델 교체 중...';
+      loadingEl.style.opacity = 1;
+
+      loader.load(src, (gltf) => {
+        const model = gltf.scene;
+        model.updateMatrixWorld(true);
+
+        const box = getPercentileBoundingBox(model);
+        const size = box.getSize(new THREE.Vector3());
+
+        const sizeX = size.x;
+        const sizeY = size.y;
+        const sizeZ = size.z;
+
+        let scaleX = width / sizeX;
+        let scaleY = height / sizeY;
+        let scaleZ = depth / sizeZ;
+
+        let rotateModel = 0;
+        if (sizeZ > sizeX && width > depth) {
+          scaleX = width / sizeZ;
+          scaleZ = depth / sizeX;
+          rotateModel = Math.PI / 2;
+        }
+
+        model.scale.set(scaleX, scaleY, scaleZ);
+        model.rotation.y = rotateModel;
+        model.updateMatrixWorld(true);
+
+        const adjustedBox = getPercentileBoundingBox(model);
+        const bottomY = adjustedBox.min.y;
+        const center = adjustedBox.getCenter(new THREE.Vector3());
+
+        const newWrapper = new THREE.Group();
+        newWrapper.name = wrapperName;
+
+        model.position.set(-center.x, -bottomY, -center.z);
+        newWrapper.add(model);
+
+        newWrapper.position.set(positionX, positionY, positionZ);
+        newWrapper.rotation.y = rotationY;
+
+        model.traverse(node => {
+          if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+            if (node.material) {
+              node.material.roughness = 0.8;
+              node.material.metalness = 0.1;
+            }
+          }
+        });
+
+        scene.add(newWrapper);
+        
+        const elementIndex = elements.findIndex(item => item.id === id);
+        if (elementIndex !== -1) {
+          elements[elementIndex].code = code;
+          elements[elementIndex].name = name;
+          elements[elementIndex].model3DUrl = model3DUrl;
+          elements[elementIndex].dx = width;
+          elements[elementIndex].dy = height;
+          elements[elementIndex].dz = depth;
+        }
+        
+        selectAppliance(newWrapper);
+        
+        loadingEl.style.opacity = 0;
+      }, undefined, (err) => {
+        console.error('Error loading swap model GLB:', err);
+        loadingEl.style.opacity = 0;
+      });
+    }
 
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
@@ -1064,57 +1405,12 @@ class _FullRoom3DViewerState extends State<FullRoom3DViewer> {
 
     function animate() {
       requestAnimationFrame(animate);
-      
-      const dt = clock.getDelta();
-      
-      if (currentMode === 'orbit') {
-        controls.update();
-      } else if (currentMode === 'fps') {
-        if (mobileMove.x !== 0 || mobileMove.y !== 0) {
-          const fwd = mobileMove.y * SPEED * dt;
-          const rgt = mobileMove.x * SPEED * dt;
-          
-          const sin = Math.sin(camera.rotation.y);
-          const cos = Math.cos(camera.rotation.y);
-          
-          camera.position.x += (-sin * fwd) + (cos * rgt);
-          camera.position.z += (-cos * fwd) + (-sin * rgt);
-        }
-        clampInside(camera.position);
-      }
-      
+      controls.update();
       renderer.render(scene, camera);
     }
-    const SPEED = 220.0; // speed units (cm per second)
     animate();
   </script>
 </body>
 </html>
 ''';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_controller == null) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFE6007E)),
-        ),
-      );
-    }
-    return WebViewWidget(controller: _controller!);
-  }
 }
-
-Web3DViewer getWeb3DViewer({
-  String? modelUrl,
-  String? frontImage,
-  List<Map<String, dynamic>>? elements,
-}) {
-  return Web3DViewerStub(
-    modelUrl: modelUrl,
-    frontImage: frontImage,
-    elements: elements,
-  );
-}
-
