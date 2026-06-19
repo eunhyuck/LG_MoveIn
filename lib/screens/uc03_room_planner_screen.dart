@@ -1372,12 +1372,10 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
             children: [
               const Icon(Icons.rotate_left, size: 14, color: Color(0xFFE6007E)),
               const SizedBox(width: 4),
-              const Flexible(
+              const Expanded(
                 child: Text(
-                  '3D 화면을 드래그하여 회전하고, 가전을 선택해 보세요.',
+                  '데스크톱: WASD 키로 이동 + 마우스 클릭하여 시점 조작 | 모바일: 조이스틱 및 드래그 (우측 상단 [1인칭 탐색 (FPS)]을 눌러보세요!)',
                   style: TextStyle(fontSize: 11, color: Color(0xFF8A877F)),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
                 ),
               ),
             ],
@@ -1401,7 +1399,108 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
             ),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Text(
+            "추천 배치 무드: $_mood (${_roomElements.where((e) => e.isLG).length}개 가전)",
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              color: Color(0xFF2B2A27),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
+  Widget _buildProduct3DDetail(List<RoomElement> lgAppliances) {
+    if (_selectedProduct3DIndex >= lgAppliances.length) {
+      _selectedProduct3DIndex = 0;
+    }
+    final el = lgAppliances[_selectedProduct3DIndex];
+    final src = _modelSrcFor(el);
+
+    return Column(
+      children: [
+        // Navigation arrows & Product Title
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios,
+                  size: 16,
+                  color: Color(0xFF5F5D58),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _selectedProduct3DIndex =
+                        (_selectedProduct3DIndex - 1 + lgAppliances.length) %
+                        lgAppliances.length;
+                  });
+                },
+              ),
+              Expanded(
+                child: Text(
+                  el.name,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: Color(0xFF2B2A27),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: Color(0xFF5F5D58),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _selectedProduct3DIndex =
+                        (_selectedProduct3DIndex + 1) % lgAppliances.length;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FC),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE2E4E8)),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Web3DViewer.create(
+                modelUrl: src,
+                frontImage: el.frontImage,
+              ),
+            ),
+          ),
+        ),
+        // Size Specs
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Text(
+            "실측 사이즈: W ${el.dx.toInt()} x H ${el.dy.toInt()} x D ${el.dz.toInt()} cm",
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFE6007E),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1670,7 +1769,7 @@ class InteractiveBlueprintPainter extends CustomPainter {
       final textPainter = TextPainter(
         text: TextSpan(
           text: element.name.length > 15
-              ? element.name.substring(0, 12) + "..."
+              ? "${element.name.substring(0, 12)}..."
               : element.name,
           style: TextStyle(
             color: isSel ? const Color(0xFFE6007E) : const Color(0xFF2B2A27),
@@ -2085,7 +2184,7 @@ class Isometric3DRotatorPainter extends CustomPainter {
       final textPainter = TextPainter(
         text: TextSpan(
           text: element.name.length > 12
-              ? element.name.substring(0, 10) + "..."
+              ? "${element.name.substring(0, 10)}..."
               : element.name,
           style: const TextStyle(
             color: Colors.black,
