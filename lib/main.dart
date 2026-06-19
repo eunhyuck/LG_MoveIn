@@ -4,6 +4,8 @@ import 'package:lg_move_in/screens/thinq_menu_tab.dart';
 import 'package:lg_move_in/screens/move_in_hub_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:lg_move_in/screens/uc03_room_planner_screen.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([

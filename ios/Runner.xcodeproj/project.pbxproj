@@ -179,7 +179,7 @@
 				331C807D294A63A400263BE5 /* Sources */,
 				331C807F294A63A400263BE5 /* Resources */,
 				94E682B3DC9A315EAFC68D51 /* Frameworks */,
-				4E2BE0A8DE3DF39964614598 /* Strip FinderInfo Detritus */,
+				196904D8B07A84FEAFAE834B /* Strip FinderInfo Detritus */,
 			);
 			buildRules = (
 			);
@@ -203,7 +203,7 @@
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				BBD96CA8F503C6FCC92B457F /* [CP] Embed Pods Frameworks */,
-				459502ED970141B569C0D75B /* Strip FinderInfo Detritus */,
+				EE1D778ABB923353564C8119 /* Strip FinderInfo Detritus */,
 			);
 			buildRules = (
 			);
