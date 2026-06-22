@@ -746,7 +746,10 @@ class _ListingDetailScreen extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('구독 신청이 접수되었습니다.')),
+                        const SnackBar(
+                          content: Text('구독 신청이 접수되었습니다.'),
+                          duration: Duration(seconds: 1),
+                        ),
                       ),
                       icon: const Icon(Icons.subscriptions_outlined, size: 16),
                       label: Text(subPrice, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -762,7 +765,10 @@ class _ListingDetailScreen extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('판매자에게 채팅을 보냈습니다.')),
+                        const SnackBar(
+                          content: Text('판매자에게 채팅을 보냈습니다.'),
+                          duration: Duration(seconds: 1),
+                        ),
                       ),
                       icon: const Icon(Icons.shopping_bag_outlined, size: 16),
                       label: const Text('매매 문의', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),

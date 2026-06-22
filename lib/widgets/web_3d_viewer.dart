@@ -7,6 +7,7 @@ abstract class Web3DViewer extends StatelessWidget {
   final String? frontImage;
   final List<Map<String, dynamic>>? elements;
   final Map<String, List<dynamic>>? productsDatabase;
+  final String? mood;
   final void Function(
     String id,
     String code,
@@ -24,6 +25,7 @@ abstract class Web3DViewer extends StatelessWidget {
     this.elements,
     this.productsDatabase,
     this.onApplianceSwapped,
+    this.mood,
   });
 
   factory Web3DViewer.create({
@@ -31,6 +33,7 @@ abstract class Web3DViewer extends StatelessWidget {
     String? frontImage,
     List<Map<String, dynamic>>? elements,
     Map<String, List<dynamic>>? productsDatabase,
+    String? mood,
     void Function(
       String id,
       String code,
@@ -47,6 +50,7 @@ abstract class Web3DViewer extends StatelessWidget {
       elements: elements,
       productsDatabase: productsDatabase,
       onApplianceSwapped: onApplianceSwapped,
+      mood: mood,
     );
   }
 }

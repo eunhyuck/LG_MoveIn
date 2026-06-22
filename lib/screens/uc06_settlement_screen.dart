@@ -388,7 +388,10 @@ class _UC06SettlementScreenState extends State<UC06SettlementScreen> {
                 onPressed: () {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("입주 정착 축하 보상이 지급되었습니다! 🎁")),
+                    const SnackBar(
+                      content: Text("입주 정착 축하 보상이 지급되었습니다! 🎁"),
+                      duration: Duration(seconds: 1),
+                    ),
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -1128,7 +1131,10 @@ class _UC06SettlementScreenState extends State<UC06SettlementScreen> {
                   state.isChallengeStarted = true;
                 });
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("정착 챌린지가 시작되었습니다! 🏡 미션을 확인하고 참여해 보세요.")),
+                  const SnackBar(
+                    content: Text("정착 챌린지가 시작되었습니다! 🏡 미션을 확인하고 참여해 보세요."),
+                    duration: Duration(seconds: 1),
+                  ),
                 );
               },
               style: ElevatedButton.styleFrom(
@@ -1161,7 +1167,10 @@ class _UC06SettlementScreenState extends State<UC06SettlementScreen> {
                   : () {
                       if (_verificationPhotoUrl == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("인증 사진을 업로드해 주세요!")),
+                          const SnackBar(
+                            content: Text("인증 사진을 업로드해 주세요!"),
+                            duration: Duration(seconds: 1),
+                          ),
                         );
                         return;
                       }

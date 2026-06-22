@@ -81,7 +81,10 @@ class _UC02ScheduleScreenState extends State<UC02ScheduleScreen> {
                 state.isDDayConfigured = true;
 
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("이사 일정이 성공적으로 등록되었습니다!")),
+                  const SnackBar(
+                    content: Text("이사 일정이 성공적으로 등록되었습니다!"),
+                    duration: Duration(seconds: 1),
+                  ),
                 );
                 Navigator.pop(context);
               },

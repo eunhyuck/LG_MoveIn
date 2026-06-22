@@ -6,6 +6,8 @@ import 'package:lg_move_in/screens/uc04_marketplace_screen.dart';
 import 'package:lg_move_in/screens/uc05_safe_report_screen.dart';
 import 'package:lg_move_in/screens/uc06_settlement_screen.dart';
 import 'package:lg_move_in/screens/uc07_community_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lg_move_in/services/appraise_service.dart';
 
 class MoveInHubScreen extends StatefulWidget {
   const MoveInHubScreen({super.key});
@@ -31,6 +33,23 @@ class _MoveInHubScreenState extends State<MoveInHubScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         foregroundColor: const Color(0xFF2B2A27),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              onTap: () => _showSettingsDialog(context),
+              child: const CircleAvatar(
+                radius: 18,
+                backgroundColor: Color(0xFFF0F1F5),
+                child: Icon(
+                  Icons.person_rounded,
+                  color: Color(0xFF8A877F),
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -287,23 +306,6 @@ class _MoveInHubScreenState extends State<MoveInHubScreen> {
             ),
             // Asymmetrical layout: 2 wide hero cards at the top
             _buildWideServiceCard(
-              icon: Icons.layers_rounded,
-              title: "AI 룸 플래너",
-              badge: "AI 추천",
-              badgeColor: const Color(0xFFE6007E),
-              iconGradientColors: const [Color(0xFFF06292), Color(0xFFE91E63)],
-              description: "우리집 공간에 가전/가구를 2D/3D로 미리 배치해보세요",
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const UC03RoomPlannerScreen(),
-                  ),
-                );
-              },
-            ),
-
-            _buildWideServiceCard(
               icon: Icons.swap_horizontal_circle_rounded,
               title: "AI 트레이드인",
               badge: "AI 분석",
@@ -315,6 +317,23 @@ class _MoveInHubScreenState extends State<MoveInHubScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const UC04MarketplaceScreen(),
+                  ),
+                );
+              },
+            ),
+
+            _buildWideServiceCard(
+              icon: Icons.layers_rounded,
+              title: "AI 룸 플래너",
+              badge: "AI 추천",
+              badgeColor: const Color(0xFFE6007E),
+              iconGradientColors: const [Color(0xFFF06292), Color(0xFFE91E63)],
+              description: "우리집 공간에 가전/가구를 2D/3D로 미리 배치해보세요",
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UC03RoomPlannerScreen(),
                   ),
                 );
               },
@@ -485,6 +504,88 @@ class _MoveInHubScreenState extends State<MoveInHubScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showSettingsDialog(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentKey = prefs.getString('custom_gemini_api_key') ?? '';
+    final initialKey = currentKey.isNotEmpty ? currentKey : AppraiseService.defaultGeminiApiKey;
+    final controller = TextEditingController(text: initialKey);
+
+    if (!context.mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("개발자 API 설정"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Gemini API Key를 입력하세요.\n입력하지 않으면 기본 키가 사용됩니다.",
+                style: TextStyle(fontSize: 12, color: Color(0xFF6B6860)),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: "GEMINI_API_KEY",
+                  border: OutlineInputBorder(),
+                  hintText: "AQ.Ab8RN...",
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await prefs.remove('custom_gemini_api_key');
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("기본 API Key로 재설정되었습니다."),
+                      duration: Duration(seconds: 1),
+                    ),
+                  );
+                }
+              },
+              child: const Text("초기화", style: TextStyle(color: Colors.red)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("취소"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final key = controller.text.trim();
+                if (key.isNotEmpty) {
+                  await prefs.setString('custom_gemini_api_key', key);
+                } else {
+                  await prefs.remove('custom_gemini_api_key');
+                }
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Gemini API Key가 저장되었습니다."),
+                      duration: Duration(seconds: 1),
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE6007E),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text("저장"),
+            ),
+          ],
+        );
+      },
     );
   }
 }

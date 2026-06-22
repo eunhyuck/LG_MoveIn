@@ -61,7 +61,6 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
   Map<String, String> _dbSpecs = {};
   List<Map<String, dynamic>> _recommendations = [];
   bool _loadingRecs = false;
-  List<dynamic> _usedListings = []; // 시세 조회 중 가져온 중고 실거래 매물
 
 
 
@@ -242,17 +241,6 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
         _priceMax = (listing['중고최고'] as num?)?.toInt() ?? 0;
         _priceRec = (listing['희망판매가'] as num?)?.toInt() ?? 0;
         _priceReason = listing['견적근거'] as String? ?? '';
-        _usedListings = _buildTemplateListings(
-          priceData['used'] as List? ?? [],
-          category: (_selectedCategory != null && _selectedCategory!.isNotEmpty)
-              ? _selectedCategory!
-              : (product['종류'] as String? ?? '가전'),
-          brand: product['브랜드'] as String? ?? '불명',
-          model: product['모델명단서'] as String? ?? '',
-          priceRec: (listing['희망판매가'] as num?)?.toInt() ?? 0,
-          priceMin: (listing['중고최저'] as num?)?.toInt() ?? 0,
-          priceMax: (listing['중고최고'] as num?)?.toInt() ?? 0,
-        );
         _titleCtrl.text = listing['판매제목'] as String? ?? '${_brandCtrl.text} ${_categoryCtrl.text} 판매합니다';
         _bodyCtrl.text  = listing['판매본문'] as String? ?? '';
 
@@ -383,63 +371,17 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
       setState(() => _isAnalyzing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('시세 계산 실패: $e'), backgroundColor: const Color(0xFF2B2A27)),
+          SnackBar(
+            content: Text('시세 계산 실패: $e'),
+            backgroundColor: const Color(0xFF2B2A27),
+            duration: const Duration(seconds: 1),
+          ),
         );
       }
     }
   }
 
-  // Exa 결과 있으면 그대로, 없으면 템플릿 매물로 보완
-  List<dynamic> _buildTemplateListings(
-    List rawExa, {
-    required String category,
-    required String brand,
-    required String model,
-    required int priceRec,
-    required int priceMin,
-    required int priceMax,
-  }) {
-    if (rawExa.isNotEmpty) return rawExa;
 
-    // 중심가 결정 (없으면 카테고리별 기본값)
-    final base = priceRec > 0
-        ? priceRec
-        : priceMin > 0
-            ? ((priceMin + priceMax) ~/ 2)
-            : _categoryDefaultPrice(category);
-
-    final modelLabel = model.isNotEmpty && !model.contains('불명') ? ' $model' : '';
-    final sources = ['번개장터', '당근마켓', '번개장터', '중고나라'];
-    final grades = ['A', 'A', 'B', 'B'];
-    final conditions = ['깨끗하게 사용했어요', '이사가면서 판매합니다', '기능 이상 없어요', '직거래 선호해요'];
-    final offsets = [0.85, 1.0, 0.75, 0.92];
-
-    return List.generate(4, (i) {
-      final price = (base * offsets[i]).round();
-      return {
-        'title': '$brand $category$modelLabel ${grades[i]}등급 판매',
-        'text': '${conditions[i]}. 직거래/택배 가능.',
-        'url': '',
-        '_source': sources[i],
-        '_price': price,
-        '_grade': grades[i],
-        '_isTemplate': true,
-      };
-    });
-  }
-
-  int _categoryDefaultPrice(String category) {
-    const defaults = {
-      '냉장고': 600000, '김치냉장고': 400000, '세탁기': 400000,
-      '건조기': 450000, '워시타워': 900000, '에어컨': 500000,
-      '공기청정기': 200000, '스타일러': 700000, '청소기': 200000,
-      '식기세척기': 350000, '전자레인지': 100000, '정수기': 300000,
-    };
-    for (final e in defaults.entries) {
-      if (category.contains(e.key)) return e.value;
-    }
-    return 250000;
-  }
 
   // AI가 반환한 카테고리명 → DB 카테고리명 정규화
   String _normalizeCategory(String raw) {
@@ -661,7 +603,11 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
       setState(() => _loadingRecs = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('추천 제품 로드 오류: $e'), backgroundColor: const Color(0xFF2B2A27)),
+          SnackBar(
+            content: Text('추천 제품 로드 오류: $e'),
+            backgroundColor: const Color(0xFF2B2A27),
+            duration: const Duration(seconds: 1),
+          ),
         );
       }
     }
@@ -828,7 +774,7 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
   // ─── 스텝 진행 표시 ──────────────────────────────────────────
 
   Widget _buildStepProgress() {
-    const steps = ['사진', '분석 결과', '시세 확인', '신제품 추천'];
+    const steps = ['사진', '분석 결과', '시세 확인', '제품 추천'];
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: const BoxDecoration(
@@ -2002,7 +1948,12 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
         width: double.infinity,
         child: OutlinedButton.icon(
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('폐가전 무료수거가 예약되었습니다.')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('폐가전 무료수거가 예약되었습니다.'),
+                duration: Duration(seconds: 1),
+              ),
+            );
             setState(() => _step = 3);
             _loadRecommendations();
           },
@@ -2021,6 +1972,7 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE0DED8))),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
@@ -2028,7 +1980,17 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
                       Container(
                         width: 44, height: 44,
                         decoration: BoxDecoration(color: const Color(0xFFF0EEE8), borderRadius: BorderRadius.circular(10)),
-                        child: Icon(_categoryIcon(_categoryCtrl.text), color: const Color(0xFF8A877F)),
+                        child: _photoSlots[_thumbnailSlot] != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.memory(
+                                  base64Decode(_photoSlots[_thumbnailSlot]!.split(',')[1]),
+                                  width: 44,
+                                  height: 44,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : Icon(_categoryIcon(_categoryCtrl.text), color: const Color(0xFF8A877F)),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -2073,6 +2035,7 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
                 border: Border.all(color: const Color(0xFFE6007E), width: 1.5),
               ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.check_circle, color: Color(0xFFE6007E), size: 36),
                   const SizedBox(height: 8),
@@ -2101,16 +2064,24 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
   }
 
   // ─── 비슷한 중고 매물 섹션 ─────────────────────────────────────
-  // 검색으로 가져온 실거래 매물(_usedListings) 우선, 없으면 앱 내 마켓플레이스 폴백
+  // 앱 내 마켓플레이스에 등록된 실제 중고 매물 데이터들을 사용하여 렌더링
   Widget _buildSimilarListingsSection() {
-    final items = _usedListings.isNotEmpty
-        ? _usedListings.cast<Map<String, dynamic>>().take(6).toList()
-        : <Map<String, dynamic>>[];
-
-    // 앱 내 마켓플레이스 폴백 (같은 카테고리, 타인 매물)
     final category = _normalizeCategory(_categoryCtrl.text);
-    final appMarket = MoveInState.instance.marketListings
+    
+    // 앱 내 마켓플레이스에서 같은 카테고리의 타인 매물 우선
+    var filteredListings = MoveInState.instance.marketListings
         .where((l) => !l.isMine && _normalizeCategory(l.category) == category)
+        .toList();
+
+    // 만약 해당 카테고리 매물이 부족하면, 다른 카테고리의 타인 매물로 채움
+    if (filteredListings.length < 4) {
+      final others = MoveInState.instance.marketListings
+          .where((l) => !l.isMine && _normalizeCategory(l.category) != category)
+          .toList();
+      filteredListings.addAll(others);
+    }
+
+    final appMarket = filteredListings
         .take(4)
         .map((l) => {
               'title': l.title,
@@ -2119,30 +2090,31 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
               '_price': l.price,
               '_grade': l.grade,
               '_seller': l.seller,
+              '_imageUrl': l.imageNetworkUrl,
+              '_imageDataUrl': l.imageDataUrl,
             })
         .toList();
 
-    final combined = [...items, ...appMarket];
-    if (combined.isEmpty) return const SizedBox.shrink();
+    if (appMarket.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(children: [
-          Container(width: 3, height: 14, color: const Color(0xFF2B2A27)),
+          Container(width: 3, height: 14, color: const Color(0xFFE6007E)),
           const SizedBox(width: 8),
           const Text('비슷한 중고 매물', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(color: const Color(0xFFF5F4F2), borderRadius: BorderRadius.circular(4)),
-            child: Text('${combined.length}개', style: const TextStyle(fontSize: 11, color: Color(0xFF8A877F))),
+            child: Text('${appMarket.length}개', style: const TextStyle(fontSize: 11, color: Color(0xFF8A877F))),
           ),
         ]),
         const SizedBox(height: 6),
         const Text('탭해서 신품 가격과 비교해보세요', style: TextStyle(fontSize: 12, color: Color(0xFF8A877F))),
         const SizedBox(height: 12),
-        ...combined.map((item) => _buildUsedCard(item)),
+        ...appMarket.map((item) => _buildUsedCard(item)),
       ],
     );
   }
@@ -2216,6 +2188,27 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
                   // 추천 상품 이미지가 있으면 재사용, 없으면 아이콘
                   Builder(builder: (_) {
                     final imgUrl = item['_imageUrl'] as String?;
+                    final imgDataUrl = item['_imageDataUrl'] as String?;
+
+                    // 1. 로컬 base64 데이터 이미지가 있을 경우
+                    if (imgDataUrl?.isNotEmpty == true && imgDataUrl!.startsWith('data:')) {
+                      try {
+                        final base64Str = imgDataUrl.split(',')[1];
+                        return Positioned.fill(
+                          child: ClipRRect(
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                            child: Image.memory(
+                              base64Decode(base64Str),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        );
+                      } catch (e) {
+                        // ignore decoding errors
+                      }
+                    }
+
+                    // 2. 네트워크 이미지가 있을 경우
                     final recImg = _recommendations.isNotEmpty
                         ? (_recommendations.first['image_url'] as String? ?? '')
                         : '';
@@ -2224,12 +2217,15 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
                       return Positioned.fill(
                         child: ClipRRect(
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                          child: Image.network(url, fit: BoxFit.contain,
-                              color: const Color(0xFFF5F4F2),
-                              colorBlendMode: BlendMode.dstOver,
-                              errorBuilder: (_, __, ___) => Center(
-                                child: Icon(_categoryIcon(_categoryCtrl.text), color: const Color(0xFFCCCAC4), size: 52),
-                              )),
+                          child: Image.network(
+                            url,
+                            fit: BoxFit.cover,
+                            color: const Color(0xFFF5F4F2),
+                            colorBlendMode: BlendMode.dstOver,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Icon(_categoryIcon(_categoryCtrl.text), color: const Color(0xFFCCCAC4), size: 52),
+                            ),
+                          ),
                         ),
                       );
                     }

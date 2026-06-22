@@ -68,5 +68,11 @@
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>VR 모드에서 손가락 딱 소리를 감지하여 위치를 이동하기 위해 마이크 권한이 필요합니다.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>가전 기기 상태 및 라벨 사진을 업로드하여 AI 시세 분석을 수행하기 위해 사진 앨범 접근 권한이 필요합니다.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>가전 기기 상태 및 라벨 사진을 직접 촬영하여 AI 시세 분석을 수행하기 위해 카메라 접근 권한이 필요합니다.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

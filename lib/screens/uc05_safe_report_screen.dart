@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -144,6 +145,7 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
               backgroundColor: const Color(0xFFE6007E),
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              duration: const Duration(seconds: 1),
             ),
           );
         }
@@ -503,6 +505,7 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
                               content: Text("이삿짐업체 제출용 하자 대조 증빙 리포트 및 해결 신청이 접수되었습니다. (접수 번호: MOVE-IN-UC05-8291)"),
                               backgroundColor: Color(0xFFE6007E),
                               behavior: SnackBarBehavior.floating,
+                              duration: Duration(seconds: 1),
                             ),
                           );
                         },
@@ -627,8 +630,6 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
     );
   }
 
-  // Safe image widget builder that handles base64, networks, and blobs,
-  // providing a secure placeholder on load failure without exposing raw paths/URLs.
   Widget _buildImageWidget(String path, {BoxFit fit = BoxFit.cover}) {
     if (path.startsWith('data:image/')) {
       try {
@@ -642,9 +643,15 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
       } catch (e) {
         return _buildFallbackErrorView();
       }
-    } else {
+    } else if (path.startsWith('http://') || path.startsWith('https://')) {
       return Image.network(
         path,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackErrorView(),
+      );
+    } else {
+      return Image.file(
+        File(path),
         fit: fit,
         errorBuilder: (context, error, stackTrace) => _buildFallbackErrorView(),
       );

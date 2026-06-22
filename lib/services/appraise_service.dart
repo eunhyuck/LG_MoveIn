@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ── Gemini API 설정 ─────────────────────────────────────────────
 // API 키는 env.json에 GEMINI_API_KEY를 입력 후
 // flutter run --dart-define-from-file=env.json 으로 실행
-const _geminiApiKey     = String.fromEnvironment('GEMINI_API_KEY');
+const _geminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
 const _geminiProModel   = 'gemini-2.5-pro';    // 제품 사진 식별 (정확도 우선)
 const _geminiFlashModel = 'gemini-2.5-flash';  // OCR·견적·룸플래너 (속도·비용 우선)
 const _geminiBaseUrl    = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -14,6 +15,8 @@ const _exaKey = 'efa593a1-3e73-4737-b5c4-f11c5c7c251d';
 const _usedDomains = ['daangn.com', 'bunjang.co.kr', 'joongna.com', 'cafe.naver.com'];
 
 class AppraiseService {
+  static const defaultGeminiApiKey = _geminiApiKey;
+
   // ─── 1. 제품 식별 (Vision LLM) ──────────────────────────────
   static const _categoryVisualGuide = {
     '냉장고': '세로로 긴 직사각형 본체, 1~2개 도어, 손잡이, 내부 선반·서랍 구조',
@@ -533,12 +536,16 @@ class AppraiseService {
     bool useProModel = false,
     bool useJsonMime = true,  // OCR처럼 자유형식이 필요한 경우 false
   }) async {
-    if (_geminiApiKey.isEmpty) {
+    final prefs = await SharedPreferences.getInstance();
+    final customKey = prefs.getString('custom_gemini_api_key');
+    final activeKey = (customKey != null && customKey.isNotEmpty) ? customKey : _geminiApiKey;
+
+    if (activeKey.isEmpty) {
       throw Exception('Gemini API 키가 설정되지 않았습니다. appraise_service.dart의 _geminiApiKey를 입력하세요.');
     }
 
     final model = useProModel ? _geminiProModel : _geminiFlashModel;
-    final url = Uri.parse('$_geminiBaseUrl/$model:generateContent?key=$_geminiApiKey');
+    final url = Uri.parse('$_geminiBaseUrl/$model:generateContent?key=$activeKey');
 
     // OpenAI 포맷 content → Gemini parts 포맷 변환
     final parts = <Map<String, dynamic>>[];

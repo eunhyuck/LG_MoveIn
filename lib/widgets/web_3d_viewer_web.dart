@@ -13,6 +13,7 @@ class Web3DViewerWeb extends Web3DViewer {
     super.elements,
     super.productsDatabase,
     super.onApplianceSwapped,
+    super.mood,
   });
 
   @override
@@ -22,6 +23,7 @@ class Web3DViewerWeb extends Web3DViewer {
         elements: elements!,
         productsDatabase: productsDatabase,
         onApplianceSwapped: onApplianceSwapped,
+        mood: mood,
       );
     } else {
       return _buildSingleModel3D(context);
@@ -244,6 +246,7 @@ class Web3DViewerWeb extends Web3DViewer {
 class ThreeDWebRoomViewerWeb extends StatefulWidget {
   final List<Map<String, dynamic>> elements;
   final Map<String, List<dynamic>>? productsDatabase;
+  final String? mood;
   final void Function(
     String id,
     String code,
@@ -259,6 +262,7 @@ class ThreeDWebRoomViewerWeb extends StatefulWidget {
     required this.elements,
     this.productsDatabase,
     this.onApplianceSwapped,
+    this.mood,
   });
 
   @override
@@ -316,9 +320,11 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
   }
 
   String _getHtmlTemplate(String jsonStr, String dbStr) {
+    final moodVal = widget.mood ?? '우드톤';
     return _rawHtml
         .replaceAll('__ELEMENTS_JSON__', jsonStr)
-        .replaceAll('__PRODUCTS_DATABASE_JSON__', dbStr);
+        .replaceAll('__PRODUCTS_DATABASE_JSON__', dbStr)
+        .replaceAll('__MOOD_VALUE__', moodVal);
   }
 
   static const String _rawHtml = r'''
@@ -531,15 +537,24 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
     let boxHelper = null;
 
     const areaSize = (elements.length > 0 && elements[0].areaSize) ? elements[0].areaSize : '84㎡ (25평)';
+    const selectedMood = '__MOOD_VALUE__';
     
     let roomSize = 600;
     let glbName = 'apartment_25py.glb';
     if (areaSize.includes('18평') || areaSize.includes('59㎡')) {
       roomSize = 450;
       glbName = 'apartment_18py.glb';
-    } else if (areaSize.includes('34평') || areaSize.includes('114㎡')) {
+    } else if (areaSize.includes('34평') || areaSize.includes('112㎡') || areaSize.includes('114㎡')) {
       roomSize = 800;
-      glbName = 'apartment_34py.glb';
+      if (selectedMood === '미드센추리') {
+        glbName = 'apartment_34py_midcentury.glb';
+      } else if (selectedMood === '미니멀') {
+        glbName = 'apartment_34py_minimal.glb';
+      } else if (selectedMood === 'Cozy') {
+        glbName = 'apartment_34py_cozy.glb';
+      } else {
+        glbName = 'apartment_34py.glb';
+      }
     }
     roomSize = roomSize * 1.5;
 

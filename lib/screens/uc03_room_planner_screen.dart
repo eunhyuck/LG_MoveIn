@@ -526,6 +526,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
                           ? "도면 파일이 성공적으로 업로드되었습니다."
                           : "도면 파일 업로드가 취소되었습니다.",
                     ),
+                    duration: const Duration(seconds: 1),
                   ),
                 );
               },
@@ -809,6 +810,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text("현재 가전 배치 시안이 마이페이지에 저장되었습니다."),
+                        duration: Duration(seconds: 1),
                       ),
                     );
                     Navigator.pop(context);
@@ -1446,6 +1448,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
                 elements: elementsList,
                 productsDatabase: _productsDatabase,
                 onApplianceSwapped: _handleApplianceSwapped,
+                mood: _mood,
               ),
             ),
           ),

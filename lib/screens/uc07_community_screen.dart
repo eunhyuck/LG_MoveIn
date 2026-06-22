@@ -496,6 +496,7 @@ class _UC07CommunityScreenState extends State<UC07CommunityScreen> {
                                   content: Text(
                                     "AI의 게시글 건전성 검토 후 안전하게 포스팅되었습니다! ✦",
                                   ),
+                                  duration: Duration(seconds: 1),
                                 ),
                               );
                             });
