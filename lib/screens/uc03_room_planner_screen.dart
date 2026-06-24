@@ -44,6 +44,7 @@ class RoomElement {
   final bool isWall;
   final String? model3DUrl;
   final String? code;
+  double rotationY; // Y-axis rotation in radians
 
   RoomElement({
     required this.id,
@@ -66,6 +67,7 @@ class RoomElement {
     this.isWall = false,
     this.model3DUrl,
     this.code,
+    this.rotationY = 0.0,
   });
 
   RoomElement copyWith({
@@ -85,6 +87,7 @@ class RoomElement {
     String? sideImage,
     String? model3DUrl,
     String? code,
+    double? rotationY,
   }) {
     return RoomElement(
       id: id,
@@ -107,6 +110,7 @@ class RoomElement {
       isWall: isWall,
       model3DUrl: model3DUrl ?? this.model3DUrl,
       code: code ?? this.code,
+      rotationY: rotationY ?? this.rotationY,
     );
   }
 }
@@ -220,6 +224,21 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
     return fi.image;
   }
 
+  double _defaultRotationYFor(String name, double x) {
+    final lowercase = name.toLowerCase();
+    if (lowercase.contains('냉장고') || lowercase.contains('refrigerator')) {
+      return math.pi; // 2D 레이블: 냉장고 전면 방향 표시 (3D에서는 JS가 0으로 오버라이드)
+    } else if (lowercase.contains('세탁기') ||
+        lowercase.contains('washer') ||
+        lowercase.contains('건조기') ||
+        lowercase.contains('dryer')) {
+      return x < 0 ? math.pi / 2 : -math.pi / 2;
+    } else if (lowercase.contains('에어컨') || lowercase.contains('air')) {
+      return math.pi; // 2D 레이블: 에어컨 전면 방향 표시 (3D에서는 JS가 0으로 오버라이드)
+    }
+    return 0.0;
+  }
+
   RoomElement _createLGElement(
     String id,
     String category,
@@ -297,13 +316,15 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
         sideImage: item["side_image"],
         model3DUrl: item["model_3d_url"],
         code: item["code"],
+        rotationY: _defaultRotationYFor(name, x),
       );
     }
     // Fallbacks if database is completely empty
     if (category == "refrigerators") {
+      final name = "LG 냉장고 (M876)";
       return RoomElement(
         id: id,
-        name: "LG 냉장고 (M876)",
+        name: name,
         isLG: true,
         x: x,
         y: y,
@@ -313,11 +334,13 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
         dz: 91.8,
         color: const Color(0xFF27AE60),
         model3DUrl: "assets/models/M876GBB231.glb",
+        rotationY: _defaultRotationYFor(name, x),
       );
     } else if (category == "washers") {
+      final name = "LG 세탁기 (T19O)";
       return RoomElement(
         id: id,
-        name: "LG 세탁기 (T19O)",
+        name: name,
         isLG: true,
         x: x,
         y: y,
@@ -327,11 +350,13 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
         dz: 68.0,
         color: const Color(0xFFE6007E),
         model3DUrl: "assets/models/T17DX3A.glb",
+        rotationY: _defaultRotationYFor(name, x),
       );
     } else if (category == "air-conditioners") {
+      final name = "LG 에어컨 (SQ06)";
       return RoomElement(
         id: id,
-        name: "LG 에어컨 (SQ06)",
+        name: name,
         isLG: true,
         x: x,
         y: y,
@@ -341,11 +366,13 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
         dz: 18.9,
         color: const Color(0xFF2F80ED),
         model3DUrl: "assets/models/SQ06GA1WAJ-AKOR.glb",
+        rotationY: _defaultRotationYFor(name, x),
       );
     } else {
+      final name = "LG 건조기 (RG20)";
       return RoomElement(
         id: id,
-        name: "LG 건조기 (RG20)",
+        name: name,
         isLG: true,
         x: x,
         y: y,
@@ -355,6 +382,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
         dz: 82.0,
         color: const Color(0xFF9B51E0),
         model3DUrl: "assets/models/RH10WTW.glb",
+        rotationY: _defaultRotationYFor(name, x),
       );
     }
   }
@@ -403,19 +431,14 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
         ]);
       }
     } else {
-      // 34평 (실측 설계도 real_blueprint.png 기준 매핑)
-      if (_lifestyle == "신혼") {
-        list.addAll([
-          _createLGElement("tv", "air-conditioners", 0, -22.0, 30, 30.0), // 거실 (Living Room) 좌측 경계벽
-          _createLGElement("fridge", "refrigerators", 0, -10.0, 0, 25.0), // 거실로 이동 (냉장고)
-          _createLGElement("wash", "washers", 3, -5.0, 0, 40.0), // 거실로 이동 (세탁기)
-        ]);
-      } else {
-        list.addAll([
-          _createLGElement("tv", "refrigerators", 1, -22.0, 0, 30.0), // 거실 벽면
-          _createLGElement("wash", "washers", 0, -70.0, 0, -95.0), // 발코니 세탁실
-        ]);
-      }
+      // 34평 (사용자가 직접 배치한 좌표 기준)
+      final defaultAppliances = [
+        _createLGElement("ac",    "air-conditioners", 0, -38.0,  0, 28.2).copyWith(rotationY: 1.571),  // 거실 좌측 (에어컨)
+        _createLGElement("dry",   "dryers",           0, -32.7,  0, 58.8).copyWith(rotationY: 1.571),  // 거실 하단 (건조기)
+        _createLGElement("fridge","refrigerators",    0,  17.9,  0, 57.7).copyWith(rotationY: 0.0),    // 주방 (냉장고)
+        _createLGElement("wash",  "washers",          0,  18.3,  0, 29.6).copyWith(rotationY: -1.571), // 세탁실 (세탁기)
+      ];
+      list.addAll(defaultAppliances);
     }
 
     setState(() {
@@ -473,7 +496,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
               const Text("전용 면적"),
               DropdownButton<String>(
                 value: _areaSize,
-                items: ["59㎡ (18평)", "84㎡ (25평)", "114㎡ (34평)"].map((val) {
+                items: ["114㎡ (34평)"].map((val) {
                   return DropdownMenuItem(value: val, child: Text(val));
                 }).toList(),
                 onChanged: (val) {
@@ -799,39 +822,40 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
             ],
           ),
         ),
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: Colors.white,
-          child: Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("현재 가전 배치 시안이 마이페이지에 저장되었습니다."),
-                        duration: Duration(seconds: 1),
+        if (_tabController.index < 2)
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.white,
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (_tabController.index == 0) {
+                        _tabController.animateTo(1);
+                        setState(() {});
+                      } else if (_tabController.index == 1) {
+                        _tabController.animateTo(2);
+                        setState(() {});
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2B2A27),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    );
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2B2A27),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _tabController.index == 0 ? "3D 프리뷰 보러가기" : "VR로 보러가기",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
-                  child: const Text(
-                    "이 배치 저장하기",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
@@ -923,10 +947,12 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
             ),
           ),
         ),
-        if (selectedAppliance != null && selectedAppliance.isLG)
-          _buildApplianceDetailCard(selectedAppliance)
-        else
-          Expanded(child: _buildApplianceListView()),
+        SizedBox(
+          height: 220,
+          child: selectedAppliance != null && selectedAppliance.isLG
+              ? SingleChildScrollView(child: _buildApplianceDetailCard(selectedAppliance))
+              : _buildApplianceListView(),
+        ),
       ],
     );
   }
@@ -1050,6 +1076,32 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
                         fontSize: 10,
                         color: Color(0xFF5F5D58),
                         fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        _rotateSelectedAppliance();
+                      },
+                      icon: const Icon(Icons.rotate_right, size: 14),
+                      label: const Text(
+                        "90° 회전",
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE6007E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                   ],
@@ -1221,11 +1273,22 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
     final cx = (((px - width / 2) / (width / 2) * 100) - offsetX) / scaleX;
     final cz = (((py - height / 2) / (height / 2) * 100) - offsetY) / scaleY;
 
+    double sizeCm = 1200.0;
+    if (_areaSize.contains('18평') || _areaSize.contains('59㎡')) {
+      sizeCm = 950.0;
+    } else if (_areaSize.contains('34평') || _areaSize.contains('114㎡')) {
+      sizeCm = 1227.0;
+    }
+    final double factor = sizeCm / 200.0;
+
     String? foundId;
     for (var element in _roomElements) {
       if (element.isLG) {
-        final halfW = (element.dx / 2) / 3.0;
-        final halfL = (element.dz / 2) / 3.0;
+        final bool isSwapped = (element.rotationY / (math.pi / 2)).round() % 2 != 0;
+        final double wCm = isSwapped ? element.dz : element.dx;
+        final double hCm = isSwapped ? element.dx : element.dz;
+        final halfW = (wCm / 2) / factor;
+        final halfL = (hCm / 2) / factor;
         if (cx >= element.x - halfW &&
             cx <= element.x + halfW &&
             cz >= element.z - halfL &&
@@ -1241,6 +1304,174 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
     });
   }
 
+  List<Wall> _getWallsForArea(String areaSize) {
+    if (areaSize.contains('18평') || areaSize.contains('59㎡')) {
+      final double div = 2.25;
+      return [
+        Wall(0.0, -225.0 / div, 450.0 / div, 12.0 / div),
+        Wall(-225.0 / div, 0.0, 12.0 / div, 450.0 / div),
+        Wall(225.0 / div, 0.0, 12.0 / div, 450.0 / div),
+        Wall(-150.0 / div, 225.0 / div, 150.0 / div, 12.0 / div),
+        Wall(150.0 / div, 225.0 / div, 150.0 / div, 12.0 / div),
+        Wall(-112.5 / div, 37.5 / div, 112.5 / div, 12.0 / div),
+        Wall(-56.25 / div, 112.5 / div, 12.0 / div, 150.0 / div),
+        Wall(-150.0 / div, -37.5 / div, 120.0 / div, 12.0 / div),
+        Wall(-90.0 / div, -75.0 / div, 12.0 / div, 75.0 / div),
+      ];
+    } else if (areaSize.contains('34평') || areaSize.contains('114㎡')) {
+      final double div = 4.0;
+      return [
+        Wall(0.0, -434.0 / div, 800.0 / div, 12.0 / div),
+        Wall(-400.0 / div, 0.0, 12.0 / div, 868.0 / div),
+        Wall(400.0 / div, 0.0, 12.0 / div, 868.0 / div),
+        Wall(0.0, 434.0 / div, 800.0 / div, 12.0 / div),
+        Wall(108.0 / div, 0.0, 12.0 / div, 868.0 / div),
+        Wall(-176.0 / div, -74.0 / div, 12.0 / div, 720.0 / div),
+        Wall(27.0 / div, -287.0 / div, 12.0 / div, 294.0 / div),
+        Wall(-95.0 / div, -324.0 / div, 610.0 / div, 12.0 / div),
+        Wall(-288.0 / div, -86.0 / div, 224.0 / div, 12.0 / div),
+        Wall(-288.0 / div, 21.0 / div, 224.0 / div, 12.0 / div),
+        Wall(118.0 / div, -54.0 / div, 183.0 / div, 12.0 / div),
+        Wall(-95.0 / div, 286.0 / div, 610.0 / div, 12.0 / div),
+      ];
+    } else {
+      final double div = 3.0;
+      return [
+        Wall(0.0, -300.0 / div, 600.0 / div, 12.0 / div),
+        Wall(-300.0 / div, 0.0, 12.0 / div, 600.0 / div),
+        Wall(300.0 / div, 0.0, 12.0 / div, 600.0 / div),
+        Wall(-200.0 / div, 300.0 / div, 200.0 / div, 12.0 / div),
+        Wall(200.0 / div, 300.0 / div, 200.0 / div, 12.0 / div),
+        Wall(-75.0 / div, 0.0, 450.0 / div, 12.0 / div),
+        Wall(0.0, -90.0 / div, 12.0 / div, 420.0 / div),
+        Wall(-150.0 / div, 60.0 / div, 12.0 / div, 12.0 / div),
+        Wall(-225.0 / div, 120.0 / div, 150.0 / div, 12.0 / div),
+        Wall(-100.0 / div, 210.0 / div, 12.0 / div, 180.0 / div),
+        Wall(100.0 / div, 210.0 / div, 12.0 / div, 180.0 / div),
+        Wall(200.0 / div, 150.0 / div, 12.0 / div, 300.0 / div),
+        Wall(150.0 / div, -50.0 / div, 12.0 / div, 100.0 / div),
+        Wall(75.0 / div, 0.0, 150.0 / div, 12.0 / div),
+        Wall(250.0 / div, 120.0 / div, 100.0 / div, 12.0 / div),
+      ];
+    }
+  }
+
+  Rect _getElementRect(RoomElement el, {double? customX, double? customZ, double? customRotY}) {
+    final double x = customX ?? el.x;
+    final double z = customZ ?? el.z;
+    final double rotY = customRotY ?? el.rotationY;
+
+    double sizeCm = 1200.0;
+    if (_areaSize.contains('18평') || _areaSize.contains('59㎡')) {
+      sizeCm = 950.0;
+    } else if (_areaSize.contains('34평') || _areaSize.contains('114㎡')) {
+      sizeCm = 1227.0;
+    } else {
+      sizeCm = 1200.0;
+    }
+
+    final double factor = sizeCm / 200.0;
+
+    final bool isSwapped = (rotY / (math.pi / 2)).round() % 2 != 0;
+    final double wCm = isSwapped ? el.dz : el.dx;
+    final double hCm = isSwapped ? el.dx : el.dz;
+
+    final double wNorm = wCm / factor;
+    final double hNorm = hCm / factor;
+
+    return Rect.fromCenter(
+      center: Offset(x, z),
+      width: wNorm,
+      height: hNorm,
+    );
+  }
+
+  bool _isCandidatePositionValid(String elementId, double candidateX, double candidateZ, double rotationY) {
+    final element = _roomElements.firstWhere((e) => e.id == elementId);
+    final candidateRect = _getElementRect(element, customX: candidateX, customZ: candidateZ, customRotY: rotationY);
+
+    if (candidateX < -100.0 || candidateX > 100.0 || candidateZ < -100.0 || candidateZ > 100.0) {
+      return false;
+    }
+
+    final walls = _getWallsForArea(_areaSize);
+    for (var wall in walls) {
+      if (candidateRect.overlaps(wall.rect)) {
+        return false;
+      }
+    }
+
+    for (var other in _roomElements) {
+      if (other.id == elementId) continue;
+      if (other.isWall) continue;
+      final otherRect = _getElementRect(other);
+      if (candidateRect.overlaps(otherRect)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  void _rotateSelectedAppliance() {
+    if (_selectedElementId == null) return;
+    final element = _roomElements.firstWhere((e) => e.id == _selectedElementId);
+    final double nextRotation = (element.rotationY + math.pi / 2) % (2 * math.pi);
+
+    if (_isCandidatePositionValid(_selectedElementId!, element.x, element.z, nextRotation)) {
+      setState(() {
+        _roomElements = _roomElements.map((e) {
+          if (e.id == _selectedElementId) {
+            return e.copyWith(rotationY: nextRotation);
+          }
+          return e;
+        }).toList();
+      });
+    } else {
+      bool nudged = false;
+      const double nudgeStep = 2.0;
+      final directions = [
+        Offset(-nudgeStep, 0),
+        Offset(nudgeStep, 0),
+        Offset(0, -nudgeStep),
+        Offset(0, nudgeStep),
+      ];
+
+      for (var dir in directions) {
+        final nx = element.x + dir.dx;
+        final nz = element.z + dir.dy;
+        if (_isCandidatePositionValid(_selectedElementId!, nx, nz, nextRotation)) {
+          setState(() {
+            _roomElements = _roomElements.map((e) {
+              if (e.id == _selectedElementId) {
+                return e.copyWith(x: nx, z: nz, rotationY: nextRotation);
+              }
+              return e;
+            }).toList();
+          });
+          nudged = true;
+          break;
+        }
+      }
+
+      if (!nudged) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("공간이 부족하여 회전할 수 없습니다."),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    }
+    // 회전 후 전체 가전 좌표 및 방향 출력
+    debugPrint("=== 현재 가전 좌표 ===");
+    for (final e in _roomElements) {
+      if (e.isLG) {
+        debugPrint("  id=${e.id}, x=${e.x.toStringAsFixed(1)}, z=${e.z.toStringAsFixed(1)}, rotY=${e.rotationY.toStringAsFixed(3)}");
+      }
+    }
+  }
+
   void _updateAppliancePosition(
     double px,
     double py,
@@ -1251,11 +1482,6 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
 
     final element = _roomElements.firstWhere((e) => e.id == _selectedElementId);
 
-    // Scale factor: 1 coordinate unit = 3 cm (since room is 600cm and coordinate range is -100 to 100)
-    final double halfW = (element.dx / 2.0) / 3.0;
-    final double halfL = (element.dz / 2.0) / 3.0;
-
-    // Calibration parameters
     double scaleX = 1.0;
     double scaleY = 1.0;
     double offsetX = 0.0;
@@ -1281,18 +1507,50 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
     final rawCx = (((px - width / 2) / (width / 2) * 100) - offsetX) / scaleX;
     final rawCz = (((py - height / 2) / (height / 2) * 100) - offsetY) / scaleY;
 
-    // Clamp coordinates so that the appliance edges do not exceed the -100 to 100 room boundaries
+    final candidateRect = _getElementRect(element, customX: rawCx, customZ: rawCz);
+    final halfW = candidateRect.width / 2.0;
+    final halfL = candidateRect.height / 2.0;
+
     final cx = rawCx.clamp(-100.0 + halfW, 100.0 - halfW);
     final cz = rawCz.clamp(-100.0 + halfL, 100.0 - halfL);
 
-    setState(() {
-      _roomElements = _roomElements.map((e) {
-        if (e.id == _selectedElementId) {
-          return e.copyWith(x: cx, z: cz);
-        }
-        return e;
-      }).toList();
-    });
+    if (_isCandidatePositionValid(_selectedElementId!, cx, cz, element.rotationY)) {
+      setState(() {
+        _roomElements = _roomElements.map((e) {
+          if (e.id == _selectedElementId) {
+            return e.copyWith(x: cx, z: cz);
+          }
+          return e;
+        }).toList();
+      });
+    } else {
+      if (_isCandidatePositionValid(_selectedElementId!, cx, element.z, element.rotationY)) {
+        setState(() {
+          _roomElements = _roomElements.map((e) {
+            if (e.id == _selectedElementId) {
+              return e.copyWith(x: cx);
+            }
+            return e;
+          }).toList();
+        });
+      } else if (_isCandidatePositionValid(_selectedElementId!, element.x, cz, element.rotationY)) {
+        setState(() {
+          _roomElements = _roomElements.map((e) {
+            if (e.id == _selectedElementId) {
+              return e.copyWith(z: cz);
+            }
+            return e;
+          }).toList();
+        });
+      }
+    }
+    // 드래그 후 전체 가전 좌표 및 방향 출력
+    debugPrint("=== 현재 가전 좌표 ===");
+    for (final e in _roomElements) {
+      if (e.isLG) {
+        debugPrint("  id=${e.id}, x=${e.x.toStringAsFixed(1)}, z=${e.z.toStringAsFixed(1)}, rotY=${e.rotationY.toStringAsFixed(3)}");
+      }
+    }
   }
 
   String _modelSrcFor(RoomElement el) {
@@ -1412,6 +1670,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
             'areaSize': _areaSize,
             'model3DUrl': e.model3DUrl,
             'code': e.code,
+            'rotationY': e.rotationY,
           },
         )
         .toList();
@@ -1583,6 +1842,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
               'areaSize': _areaSize,
               'model3DUrl': e.model3DUrl,
               'code': e.code,
+              'rotationY': e.rotationY,
             })
         .toList();
 
@@ -1680,6 +1940,7 @@ class _UC03RoomPlannerScreenState extends State<UC03RoomPlannerScreen>
                           builder: (context) => VRFullScreenPage(
                             elements: elementsList,
                             productsDatabase: _productsDatabase,
+                            mood: _mood,
                           ),
                         ),
                       );
@@ -1816,7 +2077,7 @@ class InteractiveBlueprintPainter extends CustomPainter {
     if (areaSize.contains('18평') || areaSize.contains('59㎡')) {
       sizeCm = 950.0;
     } else if (areaSize.contains('34평') || areaSize.contains('114㎡')) {
-      sizeCm = 1200.0;
+      sizeCm = 1227.0;
     }
     final double scale = (width / sizeCm) * scaleX;
 
@@ -1841,8 +2102,10 @@ class InteractiveBlueprintPainter extends CustomPainter {
         ..strokeWidth = (isSel ? 2.5 : 1.5) / viewportScale
         ..style = PaintingStyle.stroke;
 
-      final elementW = toScreenW(element.dx) / viewportScale;
-      final elementH = toScreenH(element.dz) / viewportScale;
+      final double angle = element.rotationY;
+      final bool isSwapped = (angle / (math.pi / 2)).round() % 2 != 0;
+      final elementW = toScreenW(isSwapped ? element.dz : element.dx) / viewportScale;
+      final elementH = toScreenH(isSwapped ? element.dx : element.dz) / viewportScale;
       final rect = Rect.fromCenter(
         center: Offset(toScreenX(element.x), toScreenY(element.z)),
         width: elementW,
@@ -1890,13 +2153,14 @@ class InteractiveBlueprintPainter extends CustomPainter {
         textDirection: TextDirection.ltr,
       )..layout(maxWidth: double.infinity);
 
+      canvas.save();
+      canvas.translate(rect.center.dx, rect.center.dy);
+      canvas.rotate(angle);
       textPainter.paint(
         canvas,
-        Offset(
-          rect.left + (elementW - textPainter.width) / 2,
-          rect.top + (elementH - textPainter.height) / 2,
-        ),
+        Offset(-textPainter.width / 2, -textPainter.height / 2),
       );
+      canvas.restore();
     }
   }
 
@@ -2321,4 +2585,19 @@ class Isometric3DRotatorPainter extends CustomPainter {
         oldDelegate.elements != elements ||
         oldDelegate.loadedImages != loadedImages;
   }
+}
+
+class Wall {
+  final double x;
+  final double z;
+  final double dx;
+  final double dz;
+
+  Wall(this.x, this.z, this.dx, this.dz);
+
+  Rect get rect => Rect.fromCenter(
+    center: Offset(x, z),
+    width: dx,
+    height: dz,
+  );
 }

@@ -5,11 +5,13 @@ import '../widgets/vr_room_viewer_stub.dart';
 class VRFullScreenPage extends StatefulWidget {
   final List<Map<String, dynamic>> elements;
   final Map<String, List<dynamic>>? productsDatabase;
+  final String? mood;
 
   const VRFullScreenPage({
     super.key,
     required this.elements,
     this.productsDatabase,
+    this.mood,
   });
 
   @override
@@ -49,6 +51,7 @@ class _VRFullScreenPageState extends State<VRFullScreenPage> {
             child: VRRoomViewer(
               elements: widget.elements,
               productsDatabase: widget.productsDatabase,
+              mood: widget.mood,
             ),
           ),
 

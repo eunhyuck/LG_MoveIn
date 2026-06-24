@@ -273,12 +273,10 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
   StreamSubscription? _messageSubscription;
   late String _viewType;
 
-  @override
-  void initState() {
-    super.initState();
+  void _registerView() {
     final jsonStr = jsonEncode(widget.elements);
     final dbStr = jsonEncode(widget.productsDatabase ?? {});
-    _viewType = 'room-3d-${jsonStr.hashCode}-${dbStr.hashCode}-${DateTime.now().millisecondsSinceEpoch}';
+    _viewType = 'room-3d-${jsonStr.hashCode}-${dbStr.hashCode}-${widget.mood.hashCode}-${DateTime.now().millisecondsSinceEpoch}';
 
     // ignore: undefined_prefixed_name
     ui_web.platformViewRegistry.registerViewFactory(_viewType, (int viewId) {
@@ -289,6 +287,12 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
         ..srcdoc = _getHtmlTemplate(jsonStr, dbStr);
       return iframe;
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _registerView();
 
     _messageSubscription = html.window.onMessage.listen((event) {
       try {
@@ -306,6 +310,15 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
         }
       } catch (_) {}
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant ThreeDWebRoomViewerWeb oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.mood != widget.mood || oldWidget.elements != widget.elements) {
+      _registerView();
+      setState(() {});
+    }
   }
 
   @override
@@ -541,11 +554,14 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
     
     let roomSize = 600;
     let glbName = 'apartment_25py.glb';
+    let sizeCm = 1200;
     if (areaSize.includes('18평') || areaSize.includes('59㎡')) {
       roomSize = 450;
       glbName = 'apartment_18py.glb';
+      sizeCm = 950;
     } else if (areaSize.includes('34평') || areaSize.includes('112㎡') || areaSize.includes('114㎡')) {
       roomSize = 800;
+      sizeCm = 1227;
       if (selectedMood === '미드센추리') {
         glbName = 'apartment_34py_midcentury.glb';
       } else if (selectedMood === '미니멀') {
@@ -557,6 +573,7 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
       }
     }
     roomSize = roomSize * 1.5;
+    const scaleFactor = roomSize / sizeCm;
 
     const scene = new THREE.Scene();
     
@@ -1042,14 +1059,18 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
           const sizeY = size.y;
           const sizeZ = size.z;
 
-          let scaleX = el.dx / sizeX;
-          let scaleY = el.dy / sizeY;
-          let scaleZ = el.dz / sizeZ;
+          let targetWidth = el.dx * scaleFactor;
+          let targetHeight = el.dy * scaleFactor;
+          let targetDepth = el.dz * scaleFactor;
+
+          let scaleX = targetWidth / sizeX;
+          let scaleY = targetHeight / sizeY;
+          let scaleZ = targetDepth / sizeZ;
 
           let rotateModel = 0;
-          if (sizeZ > sizeX && el.dx > el.dz) {
-            scaleX = el.dx / sizeZ;
-            scaleZ = el.dz / sizeX;
+          if (sizeZ > sizeX && targetWidth > targetDepth) {
+            scaleX = targetWidth / sizeZ;
+            scaleZ = targetDepth / sizeX;
             rotateModel = Math.PI / 2;
           }
 
@@ -1078,17 +1099,18 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
           wrapper.position.z = el.z * (roomSize / 200.0);
 
           const lowercaseName = el.name.toLowerCase();
-          if (lowercaseName.includes('냉장고') || lowercaseName.includes('refrigerator')) {
-            wrapper.rotation.y = Math.PI;
-          } else if (lowercaseName.includes('세탁기') || lowercaseName.includes('washer') ||
-                     lowercaseName.includes('건조기') || lowercaseName.includes('dryer')) {
-            if (el.x < 0) {
-              wrapper.rotation.y = Math.PI / 2;
+          if (lowercaseName.includes('냉장고') || lowercaseName.includes('refrigerator') ||
+              lowercaseName.includes('에어컨') || lowercaseName.includes('air')) {
+            wrapper.rotation.y = (el.rotationY !== undefined && el.rotationY !== null) ? (el.rotationY - Math.PI) : 0;
+          } else if (el.rotationY !== undefined && el.rotationY !== null) {
+            wrapper.rotation.y = el.rotationY;
+          } else {
+            if (lowercaseName.includes('세탁기') || lowercaseName.includes('washer') ||
+                lowercaseName.includes('건조기') || lowercaseName.includes('dryer')) {
+              wrapper.rotation.y = el.x < 0 ? Math.PI / 2 : -Math.PI / 2;
             } else {
-              wrapper.rotation.y = -Math.PI / 2;
+              wrapper.rotation.y = 0;
             }
-          } else if (lowercaseName.includes('에어컨') || lowercaseName.includes('air')) {
-            wrapper.rotation.y = Math.PI;
           }
 
           model.traverse(node => {
@@ -1128,7 +1150,7 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
       const maxDim = Math.max(size.x, size.z);
       
       if (maxDim > 0) {
-        const targetScale = (roomSize * 0.95) / maxDim;
+        const targetScale = roomSize / maxDim;
         loadedApt.scale.set(targetScale, targetScale, targetScale);
         loadedApt.updateMatrixWorld(true);
         
@@ -1455,14 +1477,18 @@ class _ThreeDWebRoomViewerWebState extends State<ThreeDWebRoomViewerWeb> {
         const sizeY = size.y;
         const sizeZ = size.z;
 
-        let scaleX = width / sizeX;
-        let scaleY = height / sizeY;
-        let scaleZ = depth / sizeZ;
+        let targetWidth = width * scaleFactor;
+        let targetHeight = height * scaleFactor;
+        let targetDepth = depth * scaleFactor;
+
+        let scaleX = targetWidth / sizeX;
+        let scaleY = targetHeight / sizeY;
+        let scaleZ = targetDepth / sizeZ;
 
         let rotateModel = 0;
-        if (sizeZ > sizeX && width > depth) {
-          scaleX = width / sizeZ;
-          scaleZ = depth / sizeX;
+        if (sizeZ > sizeX && targetWidth > targetDepth) {
+          scaleX = targetWidth / sizeZ;
+          scaleZ = targetDepth / sizeX;
           rotateModel = Math.PI / 2;
         }
 

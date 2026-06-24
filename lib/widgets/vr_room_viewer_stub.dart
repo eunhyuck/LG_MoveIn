@@ -15,11 +15,13 @@ import 'package:webview_flutter/webview_flutter.dart';
 class VRRoomViewer extends StatefulWidget {
   final List<Map<String, dynamic>> elements;
   final Map<String, List<dynamic>>? productsDatabase;
+  final String? mood;
 
   const VRRoomViewer({
     super.key,
     required this.elements,
     this.productsDatabase,
+    this.mood,
   });
 
   @override
@@ -130,9 +132,11 @@ class _VRRoomViewerState extends State<VRRoomViewer> {
   String _getHtmlTemplate() {
     final elementsJson = jsonEncode(widget.elements);
     final dbJson = jsonEncode(widget.productsDatabase ?? {});
+    final moodVal = widget.mood ?? '우드톤';
     return _rawVRHtml
         .replaceAll('__ELEMENTS_JSON__', elementsJson)
-        .replaceAll('__PRODUCTS_DATABASE_JSON__', dbJson);
+        .replaceAll('__PRODUCTS_DATABASE_JSON__', dbJson)
+        .replaceAll('__MOOD_VALUE__', moodVal);
   }
 
   static const String _rawVRHtml = r'''
@@ -342,12 +346,26 @@ class _VRRoomViewerState extends State<VRRoomViewer> {
 // ══════════════════════════════════════════════════════════════
 let elements = __ELEMENTS_JSON__;
 const productsDb = __PRODUCTS_DATABASE_JSON__;
+const selectedMood = '__MOOD_VALUE__';
 
 const areaSize = (elements.length > 0 && elements[0].areaSize) ? elements[0].areaSize : '84㎡ (25평)';
 let roomSize = 600;
 let glbName = 'apartment_25py.glb';
-if (areaSize.includes('18평') || areaSize.includes('59㎡')) { roomSize = 450; glbName = 'apartment_18py.glb'; }
-else if (areaSize.includes('34평') || areaSize.includes('112㎡')) { roomSize = 800; glbName = 'apartment_34py.glb'; }
+if (areaSize.includes('18평') || areaSize.includes('59㎡')) {
+  roomSize = 450;
+  glbName = 'apartment_18py.glb';
+} else if (areaSize.includes('34평') || areaSize.includes('112㎡') || areaSize.includes('114㎡')) {
+  roomSize = 800;
+  if (selectedMood === '미드센추리') {
+    glbName = 'apartment_34py_midcentury.glb';
+  } else if (selectedMood === '미니멀') {
+    glbName = 'apartment_34py_minimal.glb';
+  } else if (selectedMood === 'Cozy') {
+    glbName = 'apartment_34py_cozy.glb';
+  } else {
+    glbName = 'apartment_34py.glb';
+  }
+}
 
 // ══════════════════════════════════════════════════════════════
 // Three.js setup
@@ -365,7 +383,9 @@ function initThree() {
 
   // Single perspective camera; we render twice (left eye / right eye)
   camera = new THREE.PerspectiveCamera(90, (W * 0.5) / H, 1, roomSize * 8);
-  camera.position.set(roomSize * 0.05, 80, roomSize * 0.05);
+  // 거실 중심에서 베란다 방향을 바라보도록 설정 (x=0, z=거실 중안, 베란다 방향=음의 z)
+  camera.position.set(0, 80, roomSize * 0.1); // 거실 중심에서 약간 안쪽
+  camera.lookAt(0, 80, -roomSize); // 베란다 (음의 z) 방향을 바라보도록
 
   renderer = new THREE.WebGLRenderer({ antialias: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -754,7 +774,9 @@ function loadAppliances() {
 
       const lowercaseName = el.name.toLowerCase();
       if (lowercaseName.includes('냉장고') || lowercaseName.includes('refrigerator')) {
-        group.rotation.y = Math.PI;
+        group.rotation.y = 0; // 3D: 냉장고 전면이 실내를 향하도록
+      } else if (lowercaseName.includes('에어컨') || lowercaseName.includes('air')) {
+        group.rotation.y = 0; // 3D: 에어컨 전면이 실내를 향하도록 (Math.PI 아님)
       } else if (lowercaseName.includes('세탁기') || lowercaseName.includes('washer') ||
                  lowercaseName.includes('건조기') || lowercaseName.includes('dryer')) {
         if (el.x < 0) {
@@ -762,8 +784,6 @@ function loadAppliances() {
         } else {
           group.rotation.y = -Math.PI / 2;
         }
-      } else if (lowercaseName.includes('에어컨') || lowercaseName.includes('air')) {
-        group.rotation.y = Math.PI;
       }
 
       scene.add(group);
@@ -771,7 +791,9 @@ function loadAppliances() {
 
       if (++loaded >= lgEls.length) {
         if (loadingEl) loadingEl.style.display = 'none';
-        camera.position.set(roomSize * 0.05, 80, roomSize * 0.1);
+        // 거실 중심에서 베란다 방향을 바라보도록 시점 유지
+        camera.position.set(0, 80, roomSize * 0.1);
+        camera.lookAt(0, 80, -roomSize);
       }
     }, undefined, (err) => {
       console.error('Error loading model in VR:', err);
