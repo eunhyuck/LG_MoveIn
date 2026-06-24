@@ -328,6 +328,35 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
           "이사 안심 리포트",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
+        actions: [
+          TextButton.icon(
+            icon: const Icon(Icons.auto_awesome, size: 14, color: Color(0xFFE6007E)),
+            label: const Text(
+              "데모 입력",
+              style: TextStyle(color: Color(0xFFE6007E), fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            onPressed: () {
+              setState(() {
+                // 비포 이미지 URL 및 상태 세팅
+                _customBeforeImageUrls['거실 벽면'] = 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=600';
+                _customBeforeImageUrls['현관 도어'] = 'https://images.unsplash.com/photo-1508333706533-1ab43ecb1606?w=600';
+                _customBeforeImageUrls['다용도실 타일'] = 'https://images.unsplash.com/photo-1584622781564-1d987f7333c1?w=600';
+                _customBeforeImageUrls['거실 바닥재'] = 'https://images.unsplash.com/photo-1581858726788-75bc0f6a952d?w=600';
+                _uploadedBeforePhotos.updateAll((k, v) => true);
+
+                // 애프터 이미지 URL 및 상태 세팅
+                _customAfterImageUrls['거실 벽면'] = 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600';
+                _customAfterImageUrls['현관 도어'] = 'https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?w=600';
+                _customAfterImageUrls['다용도실 타일'] = 'https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=600';
+                _customAfterImageUrls['거실 바닥재'] = 'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=600';
+                _uploadedAfterPhotos.updateAll((k, v) => true);
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('시연용 예시 데이터가 일괄 등록되었습니다.')),
+              );
+            },
+          ),
+        ],
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF2B2A27),
         elevation: 0,
@@ -645,6 +674,12 @@ class _UC05SafeReportScreenState extends State<UC05SafeReportScreen>
       }
     } else if (path.startsWith('http://') || path.startsWith('https://')) {
       return Image.network(
+        path,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackErrorView(),
+      );
+    } else if (path.startsWith('assets/')) {
+      return Image.asset(
         path,
         fit: fit,
         errorBuilder: (context, error, stackTrace) => _buildFallbackErrorView(),

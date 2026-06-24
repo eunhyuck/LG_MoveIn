@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -668,6 +670,31 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
           },
         ),
         actions: [
+          // 데모 입력 버튼
+          if (_step == 0)
+            TextButton.icon(
+              icon: const Icon(Icons.auto_awesome, size: 14, color: Color(0xFFE6007E)),
+              label: const Text(
+                "데모 입력",
+                style: TextStyle(color: Color(0xFFE6007E), fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+              onPressed: () {
+                setState(() {
+                  _labelDataUrl = 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600';
+                  _selectedCategory = '세탁기';
+                  _purchaseYearCtrl.text = '2022';
+                  _sizeHintCtrl.text = '24kg';
+                  _photoSlots['정면'] = 'https://images.unsplash.com/photo-1584622781564-1d987f7333c1?w=600';
+                  _photoSlots['후면'] = 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=600';
+                  _photoSlots['측면'] = 'https://images.unsplash.com/photo-1567189046456-48096db3a3da?w=600';
+                  _photoSlots['하자 부위'] = 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=600';
+                  _thumbnailSlot = '정면';
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('시연용 가전 정보가 일괄 등록되었습니다.')),
+                );
+              },
+            ),
           // 홈으로 버튼
           if (_step > 0)
             IconButton(
@@ -890,6 +917,66 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
     );
   }
 
+  Widget _buildImageWidget(String path, {BoxFit fit = BoxFit.cover, double? width, double? height}) {
+    if (path.startsWith('data:image/')) {
+      try {
+        final base64Content = path.split(',').last;
+        final Uint8List bytes = base64Decode(base64Content);
+        return Image.memory(
+          bytes,
+          fit: fit,
+          width: width,
+          height: height,
+          errorBuilder: (context, error, stackTrace) => _buildFallbackErrorView(),
+        );
+      } catch (e) {
+        return _buildFallbackErrorView();
+      }
+    } else if (path.startsWith('http://') || path.startsWith('https://')) {
+      return Image.network(
+        path,
+        fit: fit,
+        width: width,
+        height: height,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackErrorView(),
+      );
+    } else if (path.startsWith('assets/')) {
+      return Image.asset(
+        path,
+        fit: fit,
+        width: width,
+        height: height,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackErrorView(),
+      );
+    } else {
+      return Image.file(
+        File(path),
+        fit: fit,
+        width: width,
+        height: height,
+        errorBuilder: (context, error, stackTrace) => _buildFallbackErrorView(),
+      );
+    }
+  }
+
+  Widget _buildFallbackErrorView() {
+    return Container(
+      color: const Color(0xFFF0F1F4),
+      alignment: Alignment.center,
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.image_not_supported_outlined, color: Color(0xFF8A877F), size: 24),
+          SizedBox(height: 4),
+          Text(
+            "이미지 오류",
+            style: TextStyle(fontSize: 10, color: Color(0xFF8A877F)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAuxInput(TextEditingController ctrl, String label, String hint, IconData icon) {
     return TextField(
       controller: ctrl,
@@ -967,8 +1054,8 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(11),
-                          child: Image.memory(
-                            base64Decode(_labelDataUrl!.split(',').last),
+                          child: _buildImageWidget(
+                            _labelDataUrl!,
                             width: double.infinity, height: 90, fit: BoxFit.cover,
                           ),
                         ),
@@ -1090,7 +1177,7 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
                           ? Stack(
                               fit: StackFit.expand,
                               children: [
-                                Image.memory(base64Decode(photo.split(',').last), fit: BoxFit.cover),
+                                _buildImageWidget(photo, fit: BoxFit.cover),
                                 if (isThumbnail)
                                   Positioned(
                                     top: 6, left: 6,
@@ -1201,7 +1288,7 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
-                                Image.memory(base64Decode(photo.split(',').last), fit: BoxFit.cover),
+                                _buildImageWidget(photo, fit: BoxFit.cover),
                                 if (isThumbnail)
                                   Container(
                                     color: const Color(0xFFE6007E).withValues(alpha: 0.2),
@@ -1568,7 +1655,7 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
-                                Image.memory(base64Decode(e.value!.split(',').last), fit: BoxFit.cover),
+                                _buildImageWidget(e.value!, fit: BoxFit.cover),
                                 if (isSelected)
                                   Container(
                                     color: const Color(0xFFE6007E).withValues(alpha: 0.25),
@@ -1983,8 +2070,8 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
                         child: _photoSlots[_thumbnailSlot] != null
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
-                                child: Image.memory(
-                                  base64Decode(_photoSlots[_thumbnailSlot]!.split(',')[1]),
+                                child: _buildImageWidget(
+                                  _photoSlots[_thumbnailSlot]!,
                                   width: 44,
                                   height: 44,
                                   fit: BoxFit.cover,
@@ -2197,8 +2284,8 @@ class _UC04TradeInScreenState extends State<UC04TradeInScreen> {
                         return Positioned.fill(
                           child: ClipRRect(
                             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                            child: Image.memory(
-                              base64Decode(base64Str),
+                            child: _buildImageWidget(
+                              imgDataUrl!,
                               fit: BoxFit.cover,
                             ),
                           ),
